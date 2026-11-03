@@ -300,6 +300,7 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .rep-list .s { color: var(--ink-2); white-space: nowrap; }
 .flagbox { display: flex; flex-direction: column; gap: 8px; }
 .flagbox label { font-size: .9375rem; font-weight: 600; }
+.kh { font-size: .75rem; font-weight: 500; opacity: .75; margin-left: 6px; }
 .flagbox textarea { font: inherit; padding: 10px 12px; border: 1.5px solid var(--line-2); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); min-height: 76px; width: 100%; resize: vertical; }
 .result { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .result .big { font-family: var(--display); font-weight: 800; font-size: 3rem; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
@@ -740,6 +741,13 @@ document.addEventListener('click', e => {
   const p = $('#pal'); if (p && !p.hidden && !e.composedPath().includes(p)) palClose(false);
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') palClose(true); });
+// Ctrl+Enter (⌘+Enter on Apple) sends from a note box; plain Enter stays a newline.
+function modKey() { return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘' : 'Ctrl'; }
+function sendHint() { return `<span class="kh" aria-hidden="true">${modKey()}+Enter</span>`; }
+function sendOnModEnter(el, fn) {
+  if (!el) return;
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); fn(); } });
+}
 
 // ---------- quiz ----------
 function strip() {
@@ -801,8 +809,9 @@ function showQuiz() {
 function flagBox(q) {
   const w = $('#flagw'); if (!w) return;
   if (!flagOpen) { w.innerHTML = ''; return; }
-  w.innerHTML = `<div class="flagbox"><label for="fnote">What looks wrong with this question?</label><textarea id="fnote" placeholder="e.g. the answer should be C, or the units are off"></textarea><div><button class="btn sm" id="fsave">Save flag</button></div></div>`;
+  w.innerHTML = `<div class="flagbox"><label for="fnote">What looks wrong with this question?</label><textarea id="fnote" placeholder="e.g. the answer should be C, or the units are off"></textarea><div><button class="btn sm" id="fsave" aria-keyshortcuts="Control+Enter Meta+Enter">Save flag${sendHint()}</button></div></div>`;
   $('#fnote').focus();
+  sendOnModEnter($('#fnote'), () => $('#fsave').click());
   $('#fsave').onclick = () => { Store.add('flags', { qid: q.id, note: $('#fnote').value.trim(), at: new Date().toISOString(), resolved: false }); flagOpen = false; showQuiz(); };
 }
 
@@ -1494,6 +1503,8 @@ function drawAsk(w, q, ctx) {
     <form class="askf"><input placeholder="${st.turns.length ? 'Ask a follow-up' : 'Or type your own question'}" aria-label="Ask Claude" ${st.busy ? 'disabled' : ''}>${st.busy ? `<button type="button" class="btn out sm" id="astop">Stop</button>` : `<button class="btn sm">Ask</button>`}</form></div>`;
   w.querySelectorAll('.chip2').forEach(b => b.onclick = () => sendAsk(w, q, ctx, b.textContent));
   w.querySelector('.askf').onsubmit = e => { e.preventDefault(); const v = w.querySelector('input').value.trim(); if (v) sendAsk(w, q, ctx, v); };
+  // Enter already submits this one-line form; Ctrl/⌘+Enter does the same (and no double send from implicit submission)
+  sendOnModEnter(w.querySelector('.askf input'), () => w.querySelector('.askf').requestSubmit());
   if (w.querySelector('#astop')) w.querySelector('#astop').onclick = () => st.ctl && st.ctl.abort();
   typeset(w);
 }
@@ -1540,7 +1551,8 @@ function repDraw(d, sent) {
     <span class="seg rep-kind" role="group" aria-label="Kind of report">${[['bug', 'Something’s wrong'], ['idea', 'Idea']].map(([v, l]) => `<button data-k="${v}" aria-pressed="${repKind === v}">${l}</button>`).join('')}</span>
     <div class="flagbox"><label for="rtx">${repKind === 'bug' ? 'What went wrong?' : 'What would make the hub better?'}</label><textarea id="rtx" maxlength="4000" placeholder="${repKind === 'bug' ? 'What you did, what happened, what you expected' : 'Describe the idea'}"></textarea></div>
     <p class="muted rep-note">Claude will check with you in chat before posting this as an issue on the public ma-study GitHub repo. Leave out personal details.</p>
-    <div class="qnav"><button class="btn out" id="rno">Close</button><button class="btn" id="rgo">Send</button></div>${list}`;
+    <div class="qnav"><button class="btn out" id="rno">Close</button><button class="btn" id="rgo" aria-keyshortcuts="Control+Enter Meta+Enter">Send${sendHint()}</button></div>${list}`;
+  sendOnModEnter($('#rtx'), () => $('#rgo').click());
   d.querySelectorAll('.rep-kind button').forEach(b => b.onclick = () => { const t = $('#rtx').value; repKind = b.dataset.k; repDraw(d, ''); $('#rtx').value = t; $('#rtx').focus(); });
   $('#rno').onclick = () => d.close();
   $('#rgo').onclick = () => {
