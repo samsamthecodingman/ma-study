@@ -1503,7 +1503,6 @@ function drawAsk(w, q, ctx) {
     <form class="askf"><input placeholder="${st.turns.length ? 'Ask a follow-up' : 'Or type your own question'}" aria-label="Ask Claude" ${st.busy ? 'disabled' : ''}>${st.busy ? `<button type="button" class="btn out sm" id="astop">Stop</button>` : `<button class="btn sm">Ask</button>`}</form></div>`;
   w.querySelectorAll('.chip2').forEach(b => b.onclick = () => sendAsk(w, q, ctx, b.textContent));
   w.querySelector('.askf').onsubmit = e => { e.preventDefault(); const v = w.querySelector('input').value.trim(); if (v) sendAsk(w, q, ctx, v); };
-  // Enter already submits this one-line form; Ctrl/⌘+Enter does the same (and no double send from implicit submission)
   sendOnModEnter(w.querySelector('.askf input'), () => w.querySelector('.askf').requestSubmit());
   if (w.querySelector('#astop')) w.querySelector('#astop').onclick = () => st.ctl && st.ctl.abort();
   typeset(w);
@@ -1533,7 +1532,7 @@ sampleReady.then(s => { if (s === null) document.querySelectorAll('[data-ask]').
 
 // ---------- report a problem ----------
 // Reports go to the `reports` collection. Claude files queued ones as GitHub issues on the ma-study repo.
-const BUILD = 'hub-v11';
+const BUILD = 'hub-v14';
 const RECENT_ERR = [];
 const noteErr = m => { RECENT_ERR.push({ m: String(m).slice(0, 300), at: new Date().toISOString() }); if (RECENT_ERR.length > 5) RECENT_ERR.shift(); };
 window.addEventListener('error', e => noteErr((e.message || 'error') + (e.filename ? ` @${e.filename.split('/').pop()}:${e.lineno}` : '')));
