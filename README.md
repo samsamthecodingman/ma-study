@@ -23,6 +23,15 @@ Exam-study skills for Monash students, shared within Monash Automation. Made by 
    (Or type this yourself: `/plugin install ma-study --marketplace samsamthecodingman/ma-study`)
 4. In **Settings → Connectors**, add **Google Drive** and sign in with your Monash Google account.
 
+## Updating
+
+When a new version is out, Claude tells you at the start of a quiz session and your Study Hub shows a notice. To update:
+
+- In Claude Code, type `/plugin`, choose **ma-study**, then **Update now**. Start a new session after.
+- Or turn on automatic updates: `/plugin` → **Marketplaces** → **monash-automation** → **Enable auto-update**.
+
+Your Study Hub updates itself the next time Claude quizzes you, or ask Claude to "update my Study Hub". Your progress stays.
+
 ## Use
 
 Type `/ma-study`, or just say *"help me study for ECE4179"*. Claude opens Moodle for you to sign in, asks a couple of letter-answer questions, and builds the notes. Then say *"quiz me on weeks 7–9"*.

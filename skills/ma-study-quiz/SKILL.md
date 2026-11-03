@@ -7,6 +7,11 @@ description: "Part of the ma-study set (Monash Automation study skills). Quiz a 
 
 Every quiz lives in one **Study Hub** artifact; a new quiz is just new rows in its database, never a new artifact. The student's hub URL is in Eunomia ("Study Hub") or `<study folder>/STUDY-HUB.md` (the study folder is `~/University/` if it exists, otherwise the folder this session was opened in); if neither exists, set one up (step 4). Don't put the questions in chat: it floods the conversation. If an Artifact can't be published, fall back to the AskUserQuestion pop-up, one question at a time with the feedback inside the next pop-up, and plain text instead of LaTeX.
 
+## 0. Version check (once per session, quietly)
+- Installed version: `version` in `../../.claude-plugin/plugin.json` from this skill's folder. Latest: `curl -s https://api.github.com/repos/samsamthecodingman/ma-study/releases/latest` (`tag_name`, minus the `v`; `html_url`). Skip this step if either can't be read.
+- If the latest is newer, say in one line: "ma-study <latest> is out. To update, open `/plugin`, choose ma-study, then Update now (or turn on auto-update under Marketplaces). Then start a new session." Then `set` `prefs/app` in the hub to `{latest, url: html_url, checked: <now>}` so the hub shows the same notice.
+- The hub page carries its own version: `const HUB_VERSION` in `template.html`. If it is newer than `prefs/app.hub` (or that is missing), republish `template.html` to the hub URL (with `url`; the db survives), then `update` `prefs/app` with `{hub: HUB_VERSION}`. Say so in one line. Do the same when the student asks to "update my Study Hub".
+
 ## 1. Find the material
 - If the built-in browser tools (`mcp__Claude_Browser__*`) aren't available, this is the Chat tab: give the **ma-study** step-0 message (switch to the Code tab) and stop.
 - Read `<study folder>/<UNIT>/StudyKB/README.md`, then the requested week files and their raw text in `sources/` (the slide text is the ground truth). If no notes exist, offer to run **ma-study-notes** first.
@@ -42,7 +47,7 @@ Each question's feedback links to the exact video moment and slide page, so a wr
 ## 4. Add the quiz to the hub
 - Build the docs with a small node script (see `seed-example.js`: concepts, tags and ids from a `{Q, LINKS}` array), one JSON file per doc, then write them with one ArtifactData `batch` (≤50 writes per batch) using `file_path` entries: the concepts, questions, `quizzes/<unit>-w<X>-<Y>` = `{unit, title, created, qids}` and, for a new unit, `meta/<unit lowercase>` = `{unit, name, examDate}` (exam date from the notes README).
 - Check: `node -e` that every `a < o.length` or `num` is set and every concept id exists; then `list` `quizzes` to confirm. Give the hub link in one line; the new quiz is on its home page after a reload.
-- **No hub yet:** publish `template.html` (next to this file) as a new artifact with `capabilities: {db: {}, sample: {}}` and icon `quiz`, then seed it as above, and sync the notes (4c). Save the URL to Eunomia ("Study Hub", the student's entity) or `<study folder>/STUDY-HUB.md`.
+- **No hub yet:** publish `template.html` (next to this file) as a new artifact with `capabilities: {db: {}, sample: {}}` and icon `quiz`, then seed it as above, and sync the notes (4c). Save the URL to Eunomia ("Study Hub", the student's entity) or `<study folder>/STUDY-HUB.md`. Set `prefs/app` = `{hub: HUB_VERSION}`. Then offer once to pin it to their Claude sidebar so it's easy to find; on a yes, use the Artifact `pin` action. Also pin it whenever the student asks to "pin my Study Hub".
 - **Changing the hub page:** edit the template, test it locally with `window.HUB_SEED` set to a seed object (it then runs on localStorage), in a **new** browser-pane tab, never one the student is using. Republish to the same URL with `url`; the db and the student's progress survive.
 
 Keep it as an Artifact. Serving it in the browser pane was tried: links replaced the quiz tab, and Panopto can't be embedded. Don't offer that again.

@@ -292,6 +292,8 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .taught a { display: inline-flex; align-items: center; gap: 8px; width: fit-content; font-weight: 600; }
 .qnav { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; border-top: 1px dashed var(--line-2); padding-top: 16px; }
 .qnav span { display: flex; gap: 8px; flex-wrap: wrap; }
+.notice { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); font-size: .9375rem; }
+.notice p { margin: 0; flex: 1; min-width: 200px; }
 .rep-kind { margin: 4px 0 12px; }
 .rep-note { font-size: .8125rem; margin: 8px 0 0; }
 .rep-list { list-style: none; padding: 0; margin: 14px 0 0; display: flex; flex-direction: column; gap: 6px; font-size: .875rem; border-top: 1px solid var(--line); padding-top: 12px; }
@@ -1116,7 +1118,7 @@ function showHome() {
   }).join('');
   app().innerHTML = topbar() + `<main class="wrap home">
     <section class="hello"><p class="eyebrow">${esc(date)}</p><h1>${hi}.</h1></section>
-    ${hero}
+    ${notices()}${hero}
     <section aria-labelledby="ut"><div class="sec-h"><h2 id="ut">Your units</h2><span class="muted">${us.length} ${us.length === 1 ? 'unit' : 'units'}</span></div>
       ${us.length ? `<div class="units">${cards}</div>` : '<p class="empty">No units yet. Ask Claude to quiz you on a week and it will appear here.</p>'}</section>
   </main>`;
@@ -1532,7 +1534,17 @@ sampleReady.then(s => { if (s === null) document.querySelectorAll('[data-ask]').
 
 // ---------- report a problem ----------
 // Reports go to the `reports` collection. Claude files queued ones as GitHub issues on the ma-study repo.
-const BUILD = 'hub-v14';
+const HUB_VERSION = '1.1.1';
+const BUILD = HUB_VERSION;
+// Home-page notices: a newer ma-study release (Claude writes prefs/app when it checks GitHub) and a one-time pin tip.
+const verGt = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
+function notices() {
+  const v = Store.get('prefs/app') || {}, out = [];
+  if (v.latest && verGt(v.latest, HUB_VERSION)) out.push(`<div class="notice" role="status"><p><b>Study Hub ${esc(v.latest)} is out.</b> Ask Claude to “update my Study Hub”.${/^https:\/\/github\.com\//.test(v.url || '') ? ` <a href="${esc(v.url)}" target="_blank" rel="noopener">What’s new</a>` : ''}</p></div>`);
+  if (!(PREFS.tips && PREFS.tips.pin)) out.push(`<div class="notice"><p><b>Tip:</b> pin this page so it’s always in your Claude sidebar. Ask Claude to “pin my Study Hub”.</p><button class="btn out sm" id="pintip">Got it</button></div>`);
+  return out.join('');
+}
+document.addEventListener('click', e => { if (e.target.closest('#pintip')) { PREFS.tips = Object.assign({}, PREFS.tips, { pin: 1 }); savePrefs(); const n = e.target.closest('.notice'); if (n) n.remove(); } });
 const RECENT_ERR = [];
 const noteErr = m => { RECENT_ERR.push({ m: String(m).slice(0, 300), at: new Date().toISOString() }); if (RECENT_ERR.length > 5) RECENT_ERR.shift(); };
 window.addEventListener('error', e => noteErr((e.message || 'error') + (e.filename ? ` @${e.filename.split('/').pop()}:${e.lineno}` : '')));
