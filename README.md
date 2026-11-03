@@ -5,6 +5,8 @@ Exam-study skills for Monash students, shared within Monash Automation. Made by 
 - **ma-study-notes** reads a unit's Moodle page, the slides and worksheets on Google Drive, and Ed threads, then writes one notes file per week.
 - **ma-study-quiz** quizzes you on those notes in an interactive Study Hub, with rendered maths, links back to the lecture video and slide, spaced repetition and weak-spot revision.
 
+In the Study Hub you can also make new quizzes and practice exams, ask Claude about any question, and report a problem with one button.
+
 [![Launch video preview: answering a quiz question in the Study Hub. Click to watch the full 97-second video](docs/launch-preview.gif)](docs/ma-study-launch.mp4)
 
 ▶️ [Watch the launch video](docs/ma-study-launch.mp4) (97 s, with sound)
@@ -22,15 +24,17 @@ Exam-study skills for Monash students, shared within Monash Automation. Made by 
 3. Type: *"Install the ma-study plugin from github.com/samsamthecodingman/ma-study."* Then start a new session.
    (Or type this yourself: `/plugin install ma-study --marketplace samsamthecodingman/ma-study`)
 4. In **Settings → Connectors**, add **Google Drive** and sign in with your Monash Google account.
+5. Optional: turn on automatic updates. Type `/plugin`, go to **Marketplaces** → **monash-automation**, and choose **Enable auto-update**.
 
 ## Updating
 
-When a new version is out, Claude tells you at the start of a quiz session and your Study Hub shows a notice. To update:
-
-- In Claude Code, type `/plugin`, choose **ma-study**, then **Update now**. Start a new session after.
-- Or turn on automatic updates: `/plugin` → **Marketplaces** → **monash-automation** → **Enable auto-update**.
+When a new version is out, Claude tells you at the start of a quiz session and your Study Hub shows a notice. To update, type `/plugin`, choose **ma-study**, then **Update now**, and start a new session. (With auto-update on, this happens by itself.)
 
 Your Study Hub updates itself the next time Claude quizzes you, or ask Claude to "update my Study Hub". Your progress stays.
+
+Installed before 1.1.1? Update once by hand as above. Older versions can't tell you about new ones.
+
+See what changed in [Releases](https://github.com/samsamthecodingman/ma-study/releases).
 
 ## Use
 
@@ -39,3 +43,9 @@ Type `/ma-study`, or just say *"help me study for ECE4179"*. Claude opens Moodle
 You'll see approval prompts while it works. They're safe to approve: it only reads Moodle, Drive and Ed, and saves notes into your `University` folder.
 
 Building a whole unit uses a fair share of your Claude usage. If it stops partway, ask again and it carries on from where it stopped.
+
+**Tip:** pin your Study Hub so it's always in your Claude sidebar. Ask Claude to "pin my Study Hub".
+
+## Report a problem
+
+Use the **Report** button at the top of the Study Hub. Claude checks with you in chat before posting it as an issue here, then replies on the issue with a plan to fix it. This repo is public, so leave out personal details.
