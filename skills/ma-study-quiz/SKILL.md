@@ -10,7 +10,7 @@ Every quiz lives in one **Study Hub** artifact; a new quiz is just new rows in i
 ## 0. Version check (once per session, quietly)
 - Installed version: `version` in `../../.claude-plugin/plugin.json` from this skill's folder. Latest: `curl -s https://api.github.com/repos/samsamthecodingman/ma-study/releases/latest` (`tag_name`, minus the `v`; `html_url`). Skip this step if either can't be read.
 - If the latest is newer, say in one line: "ma-study <latest> is out. To update, open `/plugin`, choose ma-study, then Update now (or turn on auto-update under Marketplaces). Then start a new session." Then `set` `prefs/app` in the hub to `{latest, url: html_url, checked: <now>}` so the hub shows the same notice.
-- The hub page carries its own version: `const HUB_VERSION` in `template.html`. If it is newer than `prefs/app.hub` (or that is missing), republish `template.html` to the hub URL (with `url`; the db survives), then `update` `prefs/app` with `{hub: HUB_VERSION}`. Say so in one line. Do the same when the student asks to "update my Study Hub".
+- The hub page carries its own version: `const HUB_VERSION` in `template.html`. If it is newer than `prefs/app.hub` (or that is missing), republish `template.html` to the hub URL (with `url`; the db survives) with `capabilities: {db: {}, sample: {}, assets: {}}` (a hub published before diagrams has no `assets`, and its pictures won't load until it does), then `update` `prefs/app` with `{hub: HUB_VERSION}`. Say so in one line. Do the same when the student asks to "update my Study Hub".
 
 ## 1. Find the material
 - If the built-in browser tools (`mcp__Claude_Browser__*`) aren't available, this is the Chat tab: give the **ma-study** step-0 message (switch to the Code tab) and stop.
@@ -30,9 +30,17 @@ Each question is a `questions` doc (id `<unit>-w<N>-q<NN>`, unique across the hu
 { unit: "ECE4179", week: 9, concepts: ["ece4179-w9-lstm"],   // 1–3 concept ids
   w: "W9 · LSTM", q: "question with \\(math\\)",          // JSON: backslashes doubled
   o: ["A", "B", "C", "D"], a: 1,     // multiple choice; or num: 0.73, tol: 0.015
-  e: "explanation", s: "slide · <deck/section>", link: {v, d} }   // link: see step 3
+  e: "explanation", s: "slide · <deck/section>", link: {v, d},   // link: see step 3
+  fig: { id: "<32-hex asset id>", alt: "what it shows", cap: "WE 17.9 figure" } }   // optional, see 2b; or an array of up to 3
 ```
 - **Concepts:** before writing questions, read the unit's existing `concepts` (ArtifactData `list`) and reuse them. Add new ones only for topics not covered: `concepts/<unit>-w<N>-<slug>` = `{unit, week, name, order}`, 4–7 per week, named as the slides name them. Tag every question; that is what the progress view and weak-spot picker run on.
+
+## 2b. Diagrams (optional, for questions that need a picture)
+Dynamics, circuits and geometry questions often make no sense without the figure. A question can carry up to three images in `fig`; the hub shows them under the question on a white card, with `alt` read by screen readers and `cap` underneath.
+- **Extracted figures:** use the PNGs that **ma-study-notes** saved in `StudyKB/figures/` (each week file lists them in its Figures table). Use the problem's own figure for a worked example, worksheet or problem-set question, so the student sees what the exam will show.
+- **Generated diagrams:** when no figure exists, or a simpler one teaches better (a free-body diagram, kinetic diagram, velocity triangle, circuit), draw it yourself as a small SVG: `viewBox` set, black strokes on a transparent background, labels as `<text>` in the slides' notation, no scripts, links, `foreignObject` or external references. Keep it under 50 KB. Mark the question "extra (diagram drawn by Claude)" in `s` unless the slide shows the same picture. Check it against the problem: wrong arrows teach the wrong thing.
+- **Upload:** put every image in the hub's asset store in one call: Artifact `publish` with the hub `url`, `asset: true` and `file_paths` (PNG, JPEG, WebP or SVG; up to 25 per call). Use each result's asset `id` in `fig.id`. The hub only shows `fig` ids that are 32 hex characters from its own store; links to other sites are ignored.
+- Course figures are for the student's private hub only. Never commit them to a repo or upload them anywhere else.
 
 ## 3. Link each question back to where it was taught
 Each question's feedback links to the exact video moment and slide page, so a wrong answer ties back to a memory of the lecture. Set each question's `link` to:
@@ -47,8 +55,8 @@ Each question's feedback links to the exact video moment and slide page, so a wr
 
 ## 4. Add the quiz to the hub
 - Build the docs with a small node script (see `seed-example.js`: concepts, tags and ids from a `{Q, LINKS}` array), one JSON file per doc, then write them with one ArtifactData `batch` (≤50 writes per batch) using `file_path` entries: the concepts, questions, `quizzes/<unit>-w<X>-<Y>` = `{unit, title, created, qids}` and, for a new unit, `meta/<unit lowercase>` = `{unit, name, examDate}` (exam date from the notes README).
-- Check: `node -e` that every `a < o.length` or `num` is set and every concept id exists; then `list` `quizzes` to confirm. Give the hub link in one line; the new quiz is on its home page after a reload.
-- **No hub yet:** publish `template.html` (next to this file) as a new artifact with `capabilities: {db: {}, sample: {}}` and icon `quiz`, then seed it as above, and sync the notes (4c). Save the URL to Eunomia ("Study Hub", the student's entity) or `<study folder>/STUDY-HUB.md`. Set `prefs/app` = `{hub: HUB_VERSION}`. Then offer once to pin it to their Claude sidebar so it's easy to find; on a yes, use the Artifact `pin` action. Also pin it whenever the student asks to "pin my Study Hub".
+- Check: `node -e` that every `a < o.length` or `num` is set, every concept id exists and every `fig.id` matches `/^[0-9a-f]{32}$/` and came from this hub's upload; then `list` `quizzes` to confirm. Give the hub link in one line; the new quiz is on its home page after a reload.
+- **No hub yet:** publish `template.html` (next to this file) as a new artifact with `capabilities: {db: {}, sample: {}, assets: {}}` and icon `quiz`, then seed it as above, and sync the notes (4c). Save the URL to Eunomia ("Study Hub", the student's entity) or `<study folder>/STUDY-HUB.md`. Set `prefs/app` = `{hub: HUB_VERSION}`. Then offer once to pin it to their Claude sidebar so it's easy to find; on a yes, use the Artifact `pin` action. Also pin it whenever the student asks to "pin my Study Hub".
 - **Changing the hub page:** edit the template, test it locally with `window.HUB_SEED` set to a seed object (it then runs on localStorage), in a **new** browser-pane tab, never one the student is using. Republish to the same URL with `url`; the db and the student's progress survive.
 
 Keep it as an Artifact. Serving it in the browser pane was tried: links replaced the quiz tab, and Panopto can't be embedded. Don't offer that again.

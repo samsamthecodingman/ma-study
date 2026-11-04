@@ -331,6 +331,9 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 [data-preset="matcha"] .verdict { font-weight: 400; font-size: 1.45rem; }
 .verdict.ok { color: var(--good); } .verdict.no { color: var(--bad); }
 .src { font-size: .8125rem; line-height: 1.5; color: var(--ink-3); }
+.qfig { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.qfig img { display: block; max-width: 100%; max-height: 420px; width: auto; height: auto; align-self: flex-start; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+.qfig figcaption { font-size: .8125rem; line-height: 1.5; color: var(--ink-3); }
 .sure { display: flex; gap: 8px 10px; align-items: center; flex-wrap: wrap; font-size: .9375rem; color: var(--ink-2); }
 .seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--sunk); border-radius: 999px; }
 .seg button { font: inherit; font-size: .875rem; font-weight: 700; border: 0; background: transparent; color: var(--ink-2); padding: 0 14px; min-height: 32px; border-radius: 999px; cursor: pointer; }
@@ -729,7 +732,10 @@ const H = s => {
     walk(c); }); })(t.content);
   return t.innerHTML;
 };
-const UUID = /^[0-9a-fA-F-]{8,40}$/, DRIVE = /^[A-Za-z0-9_-]{10,100}$/;
+const UUID = /^[0-9a-fA-F-]{8,40}$/, DRIVE = /^[A-Za-z0-9_-]{10,100}$/, ASSET = /^[0-9a-f]{32}$/;
+// Diagrams live in this hub's own asset store. Only a validated asset id reaches the page; the <img> is built here, never taken from question HTML.
+const figs = q => (Array.isArray(q.fig) ? q.fig : q.fig ? [q.fig] : []).filter(f => f && ASSET.test(f.id || '')).slice(0, 3)
+  .map(f => `<figure class="qfig"><img src="/_blob/${f.id}" alt="${esc(f.alt || 'Diagram for this question')}" loading="lazy">${f.cap ? `<figcaption>${H(f.cap)}</figcaption>` : ''}</figure>`).join('');
 const app = () => $('#app');
 const icon = id => `<svg class="ic" aria-hidden="true"><use href="#i-${id}"/></svg>`;
 // Examiner's marks, drawn by hand: tick (right and sure), orange tick (right but guessed), cross (wrong), dash (skipped).
@@ -953,7 +959,7 @@ function showQuiz() {
     : `<form class="numf" id="nf"><input id="nin" inputmode="decimal" aria-label="Your answer" placeholder="Your answer" autocomplete="off"><button class="btn" type="submit">Check</button></form>`;
   const flagged = Object.values(Store.all('flags')).some(f => f.qid === q.id && !f.resolved);
   c.innerHTML = `<div class="head"><span class="qn">Q${i + 1}</span><span class="wkt">${esc(q.w)}</span><span id="mkw">${mark(mk, drawMark)}</span></div>
-    <div class="body"><div class="q">${H(q.q)}</div>${!r && run.skipped.has(q.id) ? '<div class="state">You skipped this one earlier.</div>' : ''}${body}<div id="fbw"></div>
+    <div class="body"><div class="q">${H(q.q)}</div>${figs(q)}${!r && run.skipped.has(q.id) ? '<div class="state">You skipped this one earlier.</div>' : ''}${body}<div id="fbw"></div>
     <div class="qnav"><span><button class="btn out" id="prev" ${i === 0 ? 'disabled' : ''}>${icon('left')}Back</button><button class="btn out" id="flag" ${flagged ? 'disabled' : ''}>${icon('flag')}${flagged ? 'Flagged' : 'Flag'}</button></span>
     <span>${r ? '' : '<button class="btn out" id="skip">Skip</button>'}<button class="btn${r ? '' : ' out'}" id="next">${r ? 'Next question' : 'Next'}${icon('right')}</button></span></div>
     <div id="flagw"></div></div>`;
@@ -1153,7 +1159,7 @@ function exCard() {
     : q.num != null ? `<div class="numf"><input id="nin" inputmode="decimal" aria-label="Your answer" placeholder="Your answer" autocomplete="off" value="${hasAns(a) ? esc(String(a)) : ''}"></div>`
     : `<div class="wr"><textarea id="wtx" aria-label="Your answer" placeholder="Write your answer. Working counts.">${hasAns(a) ? esc(String(a)) : ''}</textarea></div>`;
   c.innerHTML = `<div class="head"><span class="qn">Q${i + 1}</span><span class="wkt">${esc(q.w || '')}</span><span class="tag" style="margin-left:auto">${m} ${m === 1 ? 'mark' : 'marks'}</span></div>
-    <div class="body"><div class="q">${H(q.q)}</div>${body}
+    <div class="body"><div class="q">${H(q.q)}</div>${figs(q)}${body}
     <div class="qnav"><span><button class="btn out" id="prev" ${i === 0 ? 'disabled' : ''}>${icon('left')}Back</button><button class="btn out" id="rev" aria-pressed="${rev}">${icon('flag')}${rev ? 'Marked for review' : 'Mark for review'}</button></span>
     <span>${hasAns(a) && q.o ? '<button class="btn out" id="clr">Clear</button>' : ''}${last ? `<button class="btn" id="fin2">Finish exam${icon('right')}</button>` : `<button class="btn" id="next">Next${icon('right')}</button>`}</span></div></div>`;
   $('#prev').onclick = () => exGo(i - 1);
@@ -1204,7 +1210,7 @@ function exReview(id, z, Q, sid, back) {
         : `<span class="timed"><input type="number" class="mkin" data-q="${esc(q.id)}" data-m="${m}" min="0" max="${m}" step="0.5" value="${sv != null ? +(sv * m).toFixed(1) : ''}" placeholder="–" aria-label="Mark Q${k + 1} out of ${m}"> / ${m}</span>`}</div>`;
     const open = cls !== 'ok';
     return `<details class="rev-q"${open ? ' open' : ''}><summary><b>Q${k + 1}</b><span class="wkt tag">${esc(q.w || '')}</span><span class="pts ${cls}">${got == null ? 'to mark' : `${got}/${m}`}</span><svg class="ic chev" aria-hidden="true"><use href="#i-down"/></svg></summary>
-      <div class="rb"><div class="q">${H(q.q)}</div>${ans}${q.e ? `<div>${H(q.e)}</div>` : ''}${q.s ? `<div class="src">${H(q.s)}</div>` : ''}${links(q, cls === 'ok')}${askBtn(q.id)}</div></details>`;
+      <div class="rb"><div class="q">${H(q.q)}</div>${figs(q)}${ans}${q.e ? `<div>${H(q.e)}</div>` : ''}${q.s ? `<div class="src">${H(q.s)}</div>` : ''}${links(q, cls === 'ok')}${askBtn(q.id)}</div></details>`;
   };
   app().innerHTML = examShell(z, back, 'Results') + `<section class="sheet"><div class="body">
     ${s.timeUp ? '<p class="state" style="margin:0;color:var(--bad);font-weight:700">Time ran out, so the exam was handed in.</p>' : ''}
