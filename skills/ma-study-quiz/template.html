@@ -240,6 +240,7 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .cfilt { position: relative; flex: none; }
 .cfbtn .ic { width: 16px; height: 16px; }
 .cfbtn .badge { margin-right: -6px; }
+.btn:not(.out) .badge { background: var(--on-acc); color: var(--acc-ink); }
 .cmenu { position: absolute; z-index: 20; top: calc(100% + 6px); right: 0; width: max-content; min-width: 220px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 6px; }
 .cmenu[hidden] { display: none; }
 .copt { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 0 10px; min-height: 40px; border-radius: var(--r-sm); font-size: .875rem; font-weight: 600; cursor: pointer; }
@@ -290,6 +291,11 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .crow { display: grid; grid-template-columns: minmax(0, 1fr) 140px 3.2em; grid-template-areas: "name bar pct" "meta bar pct"; gap: 0 14px; align-items: center;
   padding: 12px 18px; text-decoration: none; color: var(--ink); transition: background-color .15s ease-out; }
 .crow + .crow { border-top: 1px solid var(--line); }
+.mwk .sum li { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+.mwk .sum li:first-child { border-top: 0; }
+.mwk .sum .taught { margin-top: 0; }
+.mmeta { margin: 0; font-size: .8125rem; color: var(--ink-3); }
+.mmeta .fixd { color: var(--good); font-weight: 700; }
 .crow:hover { background: var(--acc-soft); color: var(--ink); }
 .cname { grid-area: name; font-weight: 600; }
 .crow small { grid-area: meta; color: var(--ink-3); font-size: .8125rem; }
@@ -463,7 +469,7 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
   .hero { grid-template-columns: 1fr; padding: 22px 20px; gap: 18px; }
   .uhead { padding: 20px 20px 0; }
   .wk summary { grid-template-columns: minmax(0, 1fr) auto 20px; grid-template-areas: "wn avg chev" "heat heat heat"; row-gap: 10px; }
-  .wk .wn { grid-area: wn; } .wk .heat { grid-area: heat; } .cw summary .track { grid-area: heat; } .wk .avg { grid-area: avg; } .wk .chev { grid-area: chev; }
+  .wk .wn { grid-area: wn; } .wk .heat, .mwk summary .cells { grid-area: heat; } .cw summary .track { grid-area: heat; } .wk .avg { grid-area: avg; } .wk .chev { grid-area: chev; }
   .crow { grid-template-columns: minmax(0, 1fr) 3.2em; grid-template-areas: "name pct" "bar bar" "meta meta"; row-gap: 6px; }
   .sheet .head, .body { padding-left: 16px; padding-right: 16px; }
   .cells.big .cell { width: 31px; height: 31px; }
@@ -754,7 +760,7 @@ const preset = () => PRESETS.find(p => p.id === PREFS.preset) || PRESETS[0];
 function savePrefs() { lsSet('hub:prefs', JSON.stringify(PREFS)); Store.set('prefs/ui', JSON.parse(JSON.stringify(PREFS))); }
 // Study settings live in PREFS.study, so they sync across devices with the theme.
 const PACES = { cram: [1, 2, 4, 7, 10], std: [1, 3, 7, 14, 30], relaxed: [2, 5, 10, 21, 45] };
-const study = () => Object.assign({ n: 10, pace: 'std', sure: true, ask: true, report: true, speed: 1, due: 'end', dueDay: 3, dueOff: 0 }, PREFS.study);
+const study = () => Object.assign({ n: 10, pace: 'std', sure: true, ask: true, report: true, mist: true, speed: 1, due: 'end', dueDay: 3, dueOff: 0 }, PREFS.study);
 const gaps = () => PACES[study().pace] || PACES.std;
 let palDirty = false;
 const HUE_NAMES = ['Red', 'Orange', 'Amber', 'Yellow', 'Lime', 'Green', 'Teal', 'Cyan', 'Blue', 'Indigo', 'Purple', 'Pink'];
@@ -938,8 +944,8 @@ function featPanel() {
   return `<div><h3>Quiz packs</h3><div class="srow"><span>Add quizzes from a pack file</span><button class="btn out sm" id="impb">${icon('plus')}Import</button></div>
     <input type="file" id="impf" accept=".json,application/json" hidden>
     <p class="hint" id="imph" role="status">${impMsg || 'A pack is a .json file of quizzes, made with the ma-study skills in Claude Code or Codex. Importing one again updates it.'}</p></div>
-    ${SOLO ? '' : `<div><h3>Add-ons</h3>${stOnOff('ask', 'Ask Claude button')}${stOnOff('report', 'Report button')}
-    <p class="hint">Switch extras on or off. New add-ons will appear here.</p></div>`}`;
+    <div><h3>Add-ons</h3>${stOnOff('mist', 'Mistake log in Concepts')}${SOLO ? '' : stOnOff('ask', 'Ask Claude button') + stOnOff('report', 'Report button')}
+    <p class="hint">Switch extras on or off. New add-ons will appear here.</p></div>`;
 }
 // ----- quiz packs: {format: 'ma-study-pack', version: 1, concepts, questions, quizzes, exams, meta}, each {id: doc} -----
 const PACK_COLS = ['concepts', 'questions', 'quizzes', 'exams', 'meta'];
@@ -1148,10 +1154,11 @@ function buildRun(route) {
     const sk = 'hub:sess:' + route.key, saved = ssGet(sk); let st = null;
     try { st = saved && JSON.parse(saved); } catch (e) {}
     const con = route.kind === 'concept' ? Store.all('concepts')[route.id] || {} : null;
-    const title = route.kind === 'weak' ? 'Revise weak spots' : route.kind === 'due' ? 'Due reviews' : 'Practice: ' + (con.name || 'concept');
+    const title = route.kind === 'weak' ? 'Revise weak spots' : route.kind === 'due' ? 'Due reviews' : route.kind === 'mistakes' ? 'Revise mistakes' : 'Practice: ' + (con.name || 'concept');
     if (!st) {
       const qids = route.kind === 'weak' ? weakIds(study().n, inUnit)
         : route.kind === 'due' ? dueIds().filter(id => Qs[id] && inUnit(Qs[id]))
+        : route.kind === 'mistakes' ? mistIds(route.unit)
         : weakIds(study().n, q => isAuto(q) && (q.concepts || []).includes(route.id));
       st = { qids, i: 0, skipped: [], res: {} };
     }
@@ -1364,7 +1371,7 @@ function sitsOf2() { // the most recent unfinished practice exam, if any
 }
 function showHome() {
   clearSessions();
-  const S = stats(), us = unitList(), nu = nextUnit(us), nDue = dueIds().length;
+  const S = stats(), us = unitList(), nu = nextUnit(us);
   const now = new Date(), hr = +new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Melbourne', hour: 'numeric', hour12: false }).format(now);
   const hi = hr < 5 ? 'Late one' : hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
   const date = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Melbourne', weekday: 'long', day: 'numeric', month: 'long' }).format(now);
@@ -1374,8 +1381,7 @@ function showHome() {
     const big = e && e.days > 0 ? `<div class="big"><b>${e.days}</b><span>${e.days === 1 ? 'day' : 'days'} to go</span></div>` : `<div class="big"><span>${esc(daysTxt(e, nu))}</span></div>`;
     hero = `<section class="hero u" ${uAttr(nu.key)} aria-label="Next exam">
       <div><p class="k">${e && e.days >= 0 ? (e.test ? 'Next test' : 'Next exam') : 'Up next'} · ${esc(nu.unit)}</p>${big}<p class="when">${e ? esc(e.when) + ' · ' : ''}${esc(nu.name || nu.unit)}</p></div>
-      <div class="side"><div class="acts"><a class="btn" href="#/s/weak">${icon('target')}Revise weak spots</a>
-        ${nDue ? `<a class="btn out" href="#/s/due">${icon('clock')}Due reviews <span class="badge">${nDue}</span></a>` : `<button class="btn out" disabled>${icon('clock')}Nothing due</button>`}</div>
+      <div class="side"><div class="acts">${recBtn(recOf(nu.key, S)) || `<a class="btn" href="#/s/weak">${icon('target')}Revise weak spots</a>`}</div>
         ${lx ? `<a class="cont" href="#/exam/${encodeURIComponent(lx.id)}">${ring(lx.d / lx.n)}<span><small>Practice exam in progress</small><b>${esc(lx.z.title)}</b><span class="muted n" style="font-size:.875rem">${lx.d} of ${lx.n} answered</span></span>${icon('right')}</a>` : lq ? `<a class="cont" href="#/quiz/${encodeURIComponent(lq.id)}">${ring(lq.d / lq.z.qids.length)}<span><small>Pick up where you left off</small><b>${esc(lq.z.title)}</b><span class="muted n" style="font-size:.875rem">${lq.d} of ${lq.z.qids.length} answered</span></span>${icon('right')}</a>` : ''}</div></section>`;
   }
   const cards = us.map(u => {
@@ -1394,15 +1400,29 @@ function showHome() {
 }
 
 // ---------- unit ----------
-function showUnit(key, tab) {
+// The one thing to do next in a unit, shown as the filled button: overdue reviews, then overdue content, then open mistakes, then weak spots.
+// Every option also lives in its tab (Concepts has weak spots, due reviews and mistakes; Progress has catch up).
+function recOf(key, S) {
+  const K = encodeURIComponent(key), Qs = Store.all('questions');
+  const nDue = dueIds().filter(id => Qs[id] && unitKey(Qs[id].unit) === key).length;
+  if (nDue) return { href: `#/s/due/${K}`, ic: 'clock', label: 'Due reviews', n: nDue };
+  const sc = sched(key);
+  if (sc) { const tk = ticksOf(key), late = contentOf(key).filter(i => sc.isDue(i) && !cdone(i, tk)).length; if (late) return { href: `#/u/${K}/progress/catchup`, ic: 'doc', label: 'Catch up', n: late }; }
+  const nm = study().mist ? mistakesOf(key, S).filter(m => m.open && isAuto(m.q)).length : 0;
+  if (nm) return { href: `#/s/mistakes/${K}`, ic: 'x', label: 'Fix mistakes', n: nm };
+  return unitStats(key, S).quizzes.length ? { href: `#/s/weak/${K}`, ic: 'target', label: 'Revise weak spots' } : null;
+}
+const recBtn = (r, cls) => r ? `<a class="btn${cls || ''}" href="${r.href}">${icon(r.ic)}${r.label}${r.n ? ` <span class="badge">${r.n}</span>` : ''}</a>` : '';
+function showUnit(key, tab, view) {
   clearSessions();
   const u = unitList().find(x => x.key === key);
   if (!u) { app().innerHTML = topbar({ href: '#/', label: 'All units' }) + `<main class="wrap upage"><p class="empty">That unit isn't here.</p></main>`; return; }
+  if (view === 'mistakes' && !study().mist) view = '';
+  if (view === 'catchup') { lsSet('hub:cscope:' + key, 'due'); location.replace('#/u/' + encodeURIComponent(key) + '/progress'); return; }
   const S = stats(), x = unitStats(key, S), e = examParts(u), K = encodeURIComponent(key);
-  const nDue = dueIds().filter(id => { const q = Store.all('questions')[id]; return q && unitKey(q.unit) === key; }).length;
   const cur = t => tab === t ? ' aria-current="page"' : '', nEx = examsOf(key).length, cc = contentCount(key);
   const cd = e ? (e.days > 0 ? `<div class="cd"><b>${e.days}</b><span>${e.days === 1 ? 'day' : 'days'} to ${e.test ? esc(e.label) : 'exam'}</span><small>${esc(e.when)}</small></div>` : `<div class="cd"><span>${esc(daysTxt(e, u))}</span><small>${esc(e.when)}</small></div>`) : `<div class="cd"><span>${u.noExam ? 'No exam' : 'No exam date yet'}</span></div>`;
-  const acts = `<div class="acts">${SOLO ? '' : `<button class="btn" id="newb">${icon('plus')}New</button>`}${x.quizzes.length ? `<a class="btn out" href="#/s/weak/${K}">${icon('target')}Revise weak spots</a>` : ''}${nDue ? `<a class="btn out" href="#/s/due/${K}">${icon('clock')}Due <span class="badge">${nDue}</span></a>` : ''}</div>`;
+  const rec = recOf(key, S), acts = `<div class="acts">${recBtn(rec)}${SOLO ? '' : `<button class="btn${rec ? ' out' : ''}" id="newb">${icon('plus')}New</button>`}</div>`;
   const head = `<section class="uhead u" ${uAttr(key)}><p class="code">${esc(u.unit)}</p><h1>${esc(u.name || u.unit)}</h1>
     <div class="row">${cd}${acts}</div>
     <nav class="tabs" aria-label="${esc(u.unit)} sections">
@@ -1410,10 +1430,11 @@ function showUnit(key, tab) {
       <a href="#/u/${K}/concepts"${cur('progress')}>${icon('bars')}Concepts<span class="ct">${x.tried}/${x.cs.length}</span></a>
       <a href="#/u/${K}/progress"${cur('content')}>${icon('doc')}Progress<span class="ct" id="ctab">${cc.done}/${cc.n}</span></a>
       <a href="#/u/${K}/exams"${cur('exams')}>${icon('exam')}Exams<span class="ct">${nEx}</span></a></nav></section>`;
-  const body = tab === 'progress' ? progressBody(u, x, S) : tab === 'content' ? contentBody(u) : tab === 'exams' ? examsBody(u) : quizzesBody(u, x);
+  const body = tab === 'progress' ? conceptsBar(u, x, S, view) + (view === 'mistakes' ? mistakesBody(u, S) : progressBody(u, x, S)) : tab === 'content' ? contentBody(u) : tab === 'exams' ? examsBody(u) : quizzesBody(u, x);
   app().innerHTML = topbar({ href: '#/', label: 'All units' }) + `<main class="wrap">${head}<div class="upage">${reqsBox(key)}${body}</div></main>`;
   if ($('#newb')) $('#newb').onclick = () => openNew(key); wireReqs();
-  if (tab === 'progress') wireWeeks(key);
+  if (tab === 'progress') { if (view === 'mistakes') wireMistakes(key); else wireWeeks(key);
+    document.querySelectorAll('[data-cv]').forEach(b => b.onclick = () => { location.hash = '#/u/' + K + (b.dataset.cv === 'mistakes' ? '/mistakes' : '/concepts'); }); }
   if (tab === 'content') wireContent(key);
 }
 function quizzesBody(u, x) {
@@ -1449,6 +1470,62 @@ function progressBody(u, x, S) {
   return `<div class="pv-sum"><p><span class="n">${x.tried} of ${x.cs.length}</span> concepts practised${x.weak ? ` · <span class="n">${x.weak}</span> need work` : ''}</p>
     <div class="legend" aria-label="Colour key"><span><i style="background:var(--untried)"></i>Not tried</span><span><i style="background:var(--bad)"></i>Under 50%</span><span><i style="background:var(--shaky)"></i>50–80%</span><span><i style="background:var(--good)"></i>80%+</span></div></div>
     <div class="weeks">${blocks}</div>`;
+}
+// ---------- mistake log ----------
+// A question lands here once any attempt was wrong, guessed or only fairly sure. It stays "to fix" while its latest attempt is one of those.
+const isMiss = a => !a.ok || a.sure === false || a.sure === 0.5;
+function mistakesOf(key, S) {
+  const Qs = Store.all('questions'), out = [];
+  Object.entries(S.byQ).forEach(([id, atts]) => {
+    const q = Qs[id]; if (!q || unitKey(q.unit) !== key) return;
+    const miss = atts.filter(isMiss); if (!miss.length) return;
+    out.push({ id, q, open: isMiss(atts[0]), n: miss.length, tries: atts.length, a: isMiss(atts[0]) ? atts[0] : miss[0] });
+  });
+  return out.sort((x, y) => (y.open - x.open) || (x.a.at < y.a.at ? 1 : -1));
+}
+const mistIds = key => mistakesOf(key, stats()).filter(m => m.open && isAuto(m.q)).map(m => m.id);
+// Top of the Concepts tab: All concepts / Mistakes, and the practice buttons for whichever is showing.
+function conceptsBar(u, x, S, view) {
+  const K = encodeURIComponent(u.key), Qs = Store.all('questions'), mist = study().mist;
+  const nOpen = mist ? mistakesOf(u.key, S).filter(m => m.open).length : 0, nAuto = mist ? mistakesOf(u.key, S).filter(m => m.open && isAuto(m.q)).length : 0;
+  const nDue = dueIds().filter(id => Qs[id] && unitKey(Qs[id].unit) === u.key).length;
+  const seg = mist ? `<span class="seg" role="group" aria-label="Show">${[['', 'All concepts'], ['mistakes', 'Mistakes']].map(([v, l]) => `<button data-cv="${v}" aria-pressed="${(view || '') === v}">${l}${v && nOpen ? ` <span class="badge">${nOpen}</span>` : ''}</button>`).join('')}</span>` : '';
+  const btns = view === 'mistakes' ? (nAuto ? `<a class="btn out sm" href="#/s/mistakes/${K}">${icon('target')}Revise these</a>` : '')
+    : (x.quizzes.length ? `<a class="btn out sm" href="#/s/weak/${K}">${icon('target')}Revise weak spots</a>` : '') + (nDue ? `<a class="btn out sm" href="#/s/due/${K}">${icon('clock')}Due reviews <span class="badge">${nDue}</span></a>` : '');
+  return seg || btns ? `<div class="csum-c">${seg}${btns}</div>` : '';
+}
+function mistYours(m) {
+  const q = m.q, a = m.a, v = a.pick, blank = v == null || (typeof v === 'number' && isNaN(v));
+  const how = a.ok ? (a.sure === false ? 'Right, but you guessed.' : 'Right, but only fairly sure.') : '';
+  if (q.o) return `${how ? `<p class="yours">${how}</p>` : blank ? '<p class="yours">You left this blank.</p>' : ''}<div class="opts">${q.o.map((t, j) => j === q.a || (!blank && +v === j) ? `<button class="opt${j === q.a ? ' right' : ' wrong'}" disabled><span class="k">${'ABCD'[j]}</span><span>${H(t)}</span>${mark(j === q.a ? (a.ok ? 'gs' : 'ok') : 'no')}</button>` : '').join('')}</div>`;
+  if (q.num != null) return `<p class="yours">Your answer: <b class="n">${blank ? 'blank' : esc(String(v))}</b> · Correct: <b class="n">${esc(q.num)}</b>${how ? ' · ' + how : ''}</p>`;
+  const sit = Object.values(Store.all('sittings')).find(s => s.selfAtt && s.selfAtt[q.id] === a.id), typed = sit && sit.ans && sit.ans[q.id];
+  return `<p class="yours">${a.ok ? 'You marked this partly right.' : 'You marked this wrong.'}${typed ? ` You wrote: ${esc(String(typed))}` : ''}</p><div class="model"><p>Model answer</p>${H(q.ans)}</div>`;
+}
+function mistakesBody(u, S) {
+  const all = mistakesOf(u.key, S);
+  if (!all.length) return '<p class="empty">No mistakes yet. Wrong, guessed and fairly sure answers collect here so you can go over them before the exam.</p>';
+  const Cs = Store.all('concepts'), groups = new Map(), cOf = m => (m.q.concepts || []).find(id => Cs[id]) || '';
+  const openMs = all.filter(m => m.open), fixed = all.filter(m => !m.open);
+  openMs.forEach(m => { const c = cOf(m); if (!groups.has(c)) groups.set(c, []); groups.get(c).push(m); });
+  const nCon = groups.size, saved = ssGet('hub:mopen:' + u.key), open = new Set(JSON.parse(saved || '[]'));
+  const row = m => `<li><p class="mmeta">${esc(m.q.w || '')}${m.q.w ? ' · ' : ''}missed <span class="n">${m.n}</span> of <span class="n">${m.tries}</span> · ${ago(m.a.at)}</p>
+      <div>${H(m.q.q)}</div>${mistYours(m)}${m.q.e ? `<div>${H(m.q.e)}</div>` : ''}${links(m.q, !m.open, false)}</li>`;
+  const fold = (id, name, sub, ms, avg, first) => `<details class="wk mwk" data-c="${esc(id)}"${open.has(id) || (saved == null && first) ? ' open' : ''}><summary><span class="wn">${esc(name)}<small>${sub}</small></span>
+      <span class="cells" aria-hidden="true">${ms.map(m => `<i class="cell">${mark(m.open ? (m.a.ok ? 'gs' : 'no') : 'ok')}</i>`).join('')}</span>
+      ${avg}<svg class="ic chev" aria-hidden="true"><use href="#i-down"/></svg></summary><ul class="sum">${ms.map(row).join('')}</ul></details>`;
+  const blocks = [...groups].sort((a, b) => b[1].length - a[1].length).map(([cid, ms], gi) => {
+    const c = Cs[cid] || { name: 'Other questions' }, cm = S.con[cid];
+    return fold(cid, c.name, [c.week != null ? 'Week ' + wkNum(c.week) : '', `${ms.length} to fix`].filter(Boolean).join(' · '), ms,
+      `<span class="avg${cm ? '' : ' none'}">${cm ? Math.round(cm.m * 100) + '%' : '–'}</span>`, gi === 0);
+  }).join('') + (fixed.length ? fold('#fixed', 'Fixed', `${fixed.length} you now get right`, fixed, '<span class="avg none"></span>', false) : '');
+  return `<div class="pv-sum"><p>${openMs.length ? `<span class="n">${openMs.length}</span> to fix across <span class="n">${nCon}</span> ${nCon === 1 ? 'concept' : 'concepts'}` : 'Nothing left to fix'}${fixed.length ? ` · <span class="n">${fixed.length}</span> fixed` : ''}</p></div>
+    <div class="weeks">${blocks}</div>`;
+}
+function wireMistakes(key) {
+  document.querySelectorAll('.mwk').forEach(d => d.addEventListener('toggle', () => {
+    ssSet('hub:mopen:' + key, JSON.stringify([...document.querySelectorAll('.mwk[open]')].map(x => x.dataset.c)));
+  }));
 }
 function wireWeeks(key) {
   document.querySelectorAll('.wk').forEach(d => d.addEventListener('toggle', () => {
@@ -1614,9 +1691,9 @@ function wireContent(key) {
 function parse() {
   const h = decodeURIComponent((location.hash || '#/').slice(1)), p = h.split('/').filter(Boolean);
   if (p[0] === 'quiz' && p[1]) return { kind: 'quiz', id: p.slice(1).join('/'), key: 'quiz/' + p.slice(1).join('/') };
-  if (p[0] === 's' && (p[1] === 'weak' || p[1] === 'due')) return { kind: p[1], unit: p[2] ? unitKey(p[2]) : '', key: p[1] + (p[2] ? '/' + unitKey(p[2]) : '') };
+  if (p[0] === 's' && (p[1] === 'weak' || p[1] === 'due' || p[1] === 'mistakes')) return { kind: p[1], unit: p[2] ? unitKey(p[2]) : '', key: p[1] + (p[2] ? '/' + unitKey(p[2]) : '') };
   if (p[0] === 's' && p[1] === 'concept' && p[2]) return { kind: 'concept', id: p.slice(2).join('/'), key: 'concept/' + p.slice(2).join('/') };
-  if (p[0] === 'u' && p[1]) return { kind: 'unit', id: unitKey(p[1]), tab: p[2] === 'concepts' ? 'progress' : p[2] === 'progress' || p[2] === 'content' ? 'content' : p[2] === 'exams' ? 'exams' : 'quizzes' }; // the checklist tab is labelled Progress; /content still works
+  if (p[0] === 'u' && p[1]) return { kind: 'unit', id: unitKey(p[1]), tab: p[2] === 'concepts' ? 'progress' : p[2] === 'progress' || p[2] === 'content' ? 'content' : p[2] === 'exams' ? 'exams' : p[2] === 'mistakes' ? 'progress' : 'quizzes', view: p[2] === 'mistakes' ? 'mistakes' : p[3] === 'catchup' ? 'catchup' : '' }; // the checklist tab is labelled Progress; /content still works
   if (p[0] === 'exam' && p[1]) return { kind: 'exam', id: p[1], sid: p[2] === 'r' ? p[3] : null };
   if (p[0] === 'progress') return { kind: 'progress' };
   return { kind: 'home' };
@@ -1628,7 +1705,7 @@ function render() {
     location.replace(u ? '#/u/' + encodeURIComponent(u.key) + '/concepts' : '#/'); return;
   }
   if (r.kind === 'home') { run = null; showHome(); }
-  else if (r.kind === 'unit') { run = null; showUnit(r.id, r.tab); }
+  else if (r.kind === 'unit') { run = null; showUnit(r.id, r.tab, r.view); }
   else if (r.kind === 'exam') { run = null; showExam(r.id, r.sid); return; }
   else {
     run = buildRun(r);

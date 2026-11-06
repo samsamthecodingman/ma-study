@@ -10,7 +10,8 @@ Size: **S** is about a session, **M** is a few sessions, **L** needs its own pla
 |---|---|
 | **Tabbed Settings** | Done (1.5.0): Study, Dates, Appearance and Features tabs. |
 | **Progress breakdowns** | Partly done: the content checklist per unit, video time left at your watch speed, Catch up vs Whole sem, and due dates from the teaching weeks in the notes. Still to do: assignments, quizzes and classes. |
-| **Mistake log** | In progress. |
+| **Mistake log** | Built, not yet published: a Mistakes view inside Concepts (an add-on in Settings, Features). It groups wrong, guessed and fairly sure answers by concept, has a Fixed fold and a Revise these button. |
+| **Recommended action** *(added)* | Built, not yet published: one filled button on the unit header and home card for the next step (due reviews, then catch up, then fix mistakes, then weak spots). The other options sit in their tabs. Unit pages stay at four tabs. |
 
 ## Progress and planning
 
