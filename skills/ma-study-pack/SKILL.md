@@ -1,6 +1,6 @@
 ---
 name: ma-study-pack
-description: "Part of the ma-study set. Write a quiz pack (one .json file) from a student's ma-study-notes notes, to import into a Study Hub with Settings, Features, Quiz packs, Import. Works with any coding agent, including Codex CLI, and needs no Claude tools. Use when someone says 'make a quiz pack', 'quiz me in my study hub', 'write questions for week N', or wants quizzes for a Monash unit and no Claude artifact tools are available."
+description: "Part of the ma-study set. Write a quiz pack (one .json file) from a student's ma-study-notes notes, to import into a Study Hub with New, then Import on a unit page (or Settings, Features, Quiz packs, Import). Works with any coding agent, including Codex CLI, and needs no Claude tools. Use when someone says 'make a quiz pack', 'quiz me in my study hub', 'write questions for week N', or wants quizzes for a Monash unit and no Claude artifact tools are available."
 ---
 
 # ma-study-pack
@@ -38,7 +38,7 @@ Turns the notes from **ma-study-notes** into a quiz pack: one `.json` file the s
 ## 6. Tell the student
 Say where the file is, then:
 1. Open your Study Hub file in a browser.
-2. Go to Settings, then Features, then Quiz packs, then Import.
+2. On a unit page, tap New, then Import (or go to Settings, Features, Quiz packs, Import).
 3. Pick the pack file.
 
 The quiz then shows on the unit's page. Offer a follow-up pack on the topics they miss.

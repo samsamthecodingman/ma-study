@@ -195,6 +195,31 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .qrow h3 { font-size: 1.125rem; }
 .qrow .meta { color: var(--ink-2); font-size: .875rem; margin-top: 3px; }
 .qrow .cells { grid-column: 1 / -1; }
+/* quiz and exam lists: tags, a ⋯ menu per row (shown on hover where there is hover), a list bar with the filter and the page ⋯ menu, and select mode */
+.qrow:has(.qm) { grid-template-columns: minmax(0, 1fr) auto auto; }
+.qrow .qm { margin-left: -8px; }
+.qrow .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+@media (hover: hover) { .qrow .qmore { opacity: 0; } .qrow:hover .qmore, .qrow:focus-within .qmore, .qmore[aria-expanded="true"] { opacity: 1; } }
+.qrow.pick { grid-template-columns: auto minmax(0, 1fr); cursor: pointer; }
+.qrow.pick:hover { border-color: var(--acc); }
+.qrow.pick:has(input:checked) { border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
+.qrow.pick > input { width: 18px; height: 18px; margin: 0; accent-color: var(--acc); }
+.qlist { display: flex; flex-direction: column; gap: 12px; }
+.lbar > .cfilt:first-child .cmenu { left: 0; right: auto; }
+.btn.bad, .btn.bad:hover { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+.lbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 36px; }
+.lbar .sp { flex: 1; }
+.lbar .seg button { padding: 0 10px; }
+.lbar.sel { position: sticky; top: 8px; z-index: 15; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 8px 8px 8px 16px; }
+.lbar.sel > .n { font-weight: 700; font-size: .875rem; }
+.cmenu .mi { grid-template-columns: 18px minmax(0, 1fr); width: 100%; border: 0; background: none; color: var(--ink); font: inherit; font-size: .875rem; font-weight: 600; text-align: left; }
+.cmenu .mi .ic { width: 18px; height: 18px; color: var(--ink-3); }
+.cmenu .mi.bad, .cmenu .mi.bad .ic { color: var(--bad); }
+.tag.t-calc { background: var(--acc-soft); color: var(--acc-ink); }
+.tag.t-con { background: var(--good-soft); color: var(--ink-2); }
+.tag.t-pack { background: var(--shaky-soft); color: var(--ink-2); }
+.mkf input[type="text"] { font: inherit; padding: 10px 12px; border: 1.5px solid var(--line-2); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); width: 100%; }
+.mkf input[type="text"]:focus { outline: 2px solid var(--acc); outline-offset: 1px; border-color: transparent; }
 
 /* question cells + marks */
 .cells { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -542,6 +567,12 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
   <symbol id="i-bars" viewBox="0 0 24 24"><path d="M5 20V12M10 20V5M15 20v-9M20 20V8"/></symbol>
   <symbol id="i-exam" viewBox="0 0 24 24"><path d="M7 3h10v18H7zM10 8h4M10 12h4M10 16h2"/><path d="M4 7v12M20 7v12"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12.2l2.4 2.4 4.6-5"/></symbol>
   <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3c.6 4.2 2.8 6.4 7 7-4.2.6-6.4 2.8-7 7-.6-4.2-2.8-6.4-7-7 4.2-.6 6.4-2.8 7-7z"/><path d="M19 15.5c.2 1.5 1 2.3 2.5 2.5-1.5.2-2.3 1-2.5 2.5-.2-1.5-1-2.3-2.5-2.5 1.5-.2 2.3-1 2.5-2.5z"/></symbol>
 </svg>
 
@@ -578,7 +609,7 @@ const Store = {
         try { const s = await db.collection(c).get(); s.docs.forEach(d => { if (d.exists) this.data[c][d.id] = d.data(); }); }
         catch (e) { noteFail(); }
       } else if (CONTENT.includes(c)) {
-        let loc = {}; try { loc = JSON.parse(lsGet('hub:' + c) || '{}') || {}; } catch (e) {} this.data[c] = Object.assign(JSON.parse(JSON.stringify(seed[c] || {})), loc); // local docs (imports, settings) over the seed
+        let loc = {}; try { loc = JSON.parse(lsGet('hub:' + c) || '{}') || {}; } catch (e) {} this.data[c] = Object.assign(JSON.parse(JSON.stringify(seed[c] || {})), loc); for (const k in this.data[c]) if (this.data[c][k] === null) delete this.data[c][k]; // local docs (imports, settings, deletions) over the seed
       } else {
         try { this.data[c] = JSON.parse(lsGet('hub:' + c) || '{}') || {}; } catch (e) { this.data[c] = {}; }
         if (window.HUB_SEED && window.HUB_SEED[c] && !Object.keys(this.data[c]).length) this.data[c] = JSON.parse(JSON.stringify(window.HUB_SEED[c]));
@@ -600,7 +631,7 @@ const Store = {
   update(path, patch) {
     const [c, id] = path.split('/'); this.all(c)[id] = Object.assign({}, this.all(c)[id], patch);
     if (this.db) this.queue(path, () => this.db.doc(path).set(this.all(c)[id])); else this.flush(c, id);
-  },
+  }, remove(path) { const [c, id] = path.split('/'); delete this.all(c)[id]; if (this.db) this.queue(path, () => this.db.doc(path).delete()); else if (CONTENT.includes(c)) { this.all(c)[id] = null; this.flush(c, id); delete this.all(c)[id]; } else this.flush(c, id); }, // local content keeps a null so the seed copy stays gone
   add(c, obj) {
     let id;
     if (this.db) { const ref = this.db.collection(c).doc(); id = ref.id; this.all(c)[id] = obj; this.queue(c + '/' + id, () => ref.set(obj)); }
@@ -819,7 +850,7 @@ const daysTxt = (e, m) => !e ? (m && m.noExam ? 'No exam' : 'No exam date') : e.
 const LOGO = `<svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="2" width="28" height="28" rx="9" fill="var(--acc)"/><path d="M9 17c1.6 1.2 2.8 2.7 3.8 4.4C14.8 16 18 11.8 23 8.5" fill="none" stroke="var(--on-acc)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 // Standalone copy (made by tools/export-standalone.js): no Claude, so hide Claude-only controls.
 const SOLO = !!window.HUB_STANDALONE;
-const IMPORT_HINT = 'Import a quiz pack from Settings, Features.';
+const IMPORT_HINT = 'Tap <b>Import</b> above to add a quiz pack.';
 const repBtn = () => `<button class="pal-btn" id="repb" title="Report a problem with the hub">${icon('flag')}<span class="lbl">Report</span></button>`;
 function topbar(back) {
   const us = unitList().slice(0, 2), dots = [`var(--acc)`].concat(us.map(u => dot(unitHue(u.key))));
@@ -954,8 +985,9 @@ function weeksRows(u) {
 let impMsg = '';
 function featPanel() {
   return `<div><h3>Quiz packs</h3><div class="srow"><span>Add quizzes from a pack file</span><button class="btn out sm" id="impb">${icon('plus')}Import</button></div>
+    <div class="srow"><span>Share quizzes as a pack file</span><button class="btn out sm" id="xpb">Export</button></div>
     <input type="file" id="impf" accept=".json,application/json" hidden>
-    <p class="hint" id="imph" role="status">${impMsg || 'A pack is a .json file of quizzes, made with the ma-study skills in Claude Code or Codex. Importing one again updates it.'}</p></div>
+    <p class="hint" id="imph" role="status">${impMsg || 'A pack is a .json file of quizzes and practice exams, from another Study Hub’s Export or the ma-study skills. It never holds your answers or progress. Importing one again updates it.'}</p></div>
     <div><h3>Add-ons</h3>${stOnOff('mist', 'Mistake log in Concepts')}${SOLO ? '' : stOnOff('ask', 'Ask Claude button') + stOnOff('report', 'Report button')}
     <p class="hint">Switch extras on or off. New add-ons will appear here.</p></div>`;
 }
@@ -1001,7 +1033,11 @@ function importPack(text) {
   let p; try { p = JSON.parse(text); } catch (e) { packErr('This file isn’t valid JSON.'); }
   const docs = checkPack(p), now = new Date().toISOString(); let added = 0, updated = 0;
   for (const c of PACK_COLS) for (const [id, d] of Object.entries(docs[c])) {
-    if ((c === 'quizzes' || c === 'exams') && !d.created) d.created = now;
+    if (c === 'quizzes' || c === 'exams') { if (!d.created) d.created = now; d.src = 'pack';
+      const cur = Store.all(c)[id]; if (cur && cur.renamed) { d.title = cur.title; d.renamed = true; } } // a reimport keeps the student's rename
+    if (c === 'meta' && Store.all(c)[id]) { // keep the student's own dates and weeks; only fill gaps
+      const cur = Store.all(c)[id], add = {}; for (const k in d) if (cur[k] == null) add[k] = d[k];
+      if (Object.keys(add).length) Store.update(c + '/' + id, add); updated++; continue; }
     if (Store.all(c)[id]) updated++; else added++;
     Store.set(c + '/' + id, d);
   }
@@ -1009,6 +1045,126 @@ function importPack(text) {
   const what = [[nq, 'quiz', 'quizzes'], [ne, 'practice exam', 'practice exams'], [Object.keys(docs.questions).length, 'question', 'questions']].filter(x => x[0]).map(([k, a, b]) => `${k} ${k === 1 ? a : b}`).join(', ');
   return `Imported ${what}${updated ? ` (${updated} updated)` : ''}.`;
 }
+// ----- Export: picked quizzes and exams as a pack, with only the questions, concepts and unit names they use -----
+function packOf(ids) {
+  const Z = Store.all('quizzes'), E = Store.all('exams'), Q = Store.all('questions'), C = Store.all('concepts'), M = Store.all('meta');
+  const p = { format: 'ma-study-pack', version: 1, title: 'Study Hub export ' + new Date().toISOString().slice(0, 10), concepts: {}, questions: {}, quizzes: {}, exams: {}, meta: {} };
+  for (const id of ids) {
+    const c = Z[id] ? 'quizzes' : E[id] ? 'exams' : null; if (!c) continue;
+    const d = JSON.parse(JSON.stringify(Store.all(c)[id])); d.qids = (d.qids || []).filter(q => Q[q]); if (!d.qids.length) continue; delete d.renamed; delete d.src;
+    p[c][id] = d;
+    d.qids.forEach(q => { p.questions[q] = JSON.parse(JSON.stringify(Q[q])); (Q[q].concepts || []).forEach(k => { if (C[k]) p.concepts[k] = JSON.parse(JSON.stringify(C[k])); }); });
+    const mk = Object.keys(M).find(k => M[k] && unitKey(M[k].unit) === unitKey(d.unit));
+    if (mk) p.meta[mk] = { unit: M[mk].unit, name: M[mk].name }; // never the student's own dates or weeks
+  }
+  return p;
+}
+let DL; // the downloads capability: undefined while checking, null when this view has none
+const dlReady = (async () => { try { DL = (window.claude && claude.use) ? await claude.use('downloads') : null; } catch (e) { DL = null; } return DL; })();
+async function saveFile(name, text) {
+  const dl = DL === undefined ? await dlReady : DL;
+  if (dl) return dl.save({ filename: name, data: text });
+  const a = document.createElement('a'), url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  a.href = url; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+async function sharePack(ids) {
+  const p = packOf(ids), zs = [...Object.values(p.quizzes), ...Object.values(p.exams)], units = [...new Set(zs.map(z => unitKey(z.unit)))];
+  if (!zs.length) return;
+  const slug = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+  const name = `${units.length === 1 ? units[0] : 'study-hub'}-${zs.length === 1 ? slug(zs[0].title) || 'pack' : 'pack-' + new Date().toISOString().slice(0, 10)}.json`;
+  try { await saveFile(name, JSON.stringify(p, null, 1)); return true; }
+  catch (e) { if (e && e.code === 'declined') return false;
+    await askDlg({ title: 'Couldn’t save the pack', body: e && e.code === 'rate_limited' ? 'A save is already waiting. Try again in a moment.' : 'Saving files isn’t available here. Ask Claude in chat to export it instead.', ok: 'OK', cancel: '' }); return false; }
+}
+// A small dialog for confirm and rename; resolves the typed text (input), true (confirm) or null (cancel).
+function askDlg(o) {
+  let d = $('#askd'); if (!d) { document.body.insertAdjacentHTML('beforeend', '<dialog class="dlg" id="askd" aria-labelledby="askd-t"></dialog>'); d = $('#askd'); }
+  d.innerHTML = `<form method="dialog" class="mkf"><h2 id="askd-t">${esc(o.title)}</h2>${o.body ? `<p class="small">${esc(o.body)}</p>` : ''}
+    ${o.input != null ? `<input type="text" id="askin" maxlength="200" aria-label="${esc(o.label || o.title)}" value="${esc(o.input)}">` : ''}
+    <div class="qnav">${o.cancel === '' ? '' : `<button type="button" class="btn out" value="no">${esc(o.cancel || 'Cancel')}</button>`}<button type="submit" class="btn${o.bad ? ' bad' : ''}" value="ok">${esc(o.ok || 'OK')}</button></div></form>`;
+  return new Promise(res => {
+    let out = null;
+    d.querySelector('form').onsubmit = e => { e.preventDefault(); const t = $('#askin'); out = t ? t.value.trim() : true; if (t && !out) return t.focus(); d.close(); };
+    d.querySelectorAll('button[value="no"]').forEach(b => b.onclick = () => d.close());
+    d.onclose = () => res(out);
+    d.showModal(); const t = $('#askin'); if (t) t.select();
+  });
+}
+// ----- Quiz and exam lists: tags, a filter, a ⋯ menu per row and for the page, and select mode -----
+let SEL = null; // select mode: {key, tab, ids: Set, act: 'share' | ''}
+const isCalc = q => q && !q.o && (q.num != null || /\\\(|\\\[/.test(String(q.q || '') + String(q.ans || '')));
+const TAGL = { pack: 'Imported', hub: 'Made in hub', chat: 'From chat', calc: 'Calculation', con: 'Concepts' };
+function qTags(z) {
+  const Q = Store.all('questions'), qs = (z.qids || []).map(i => Q[i]).filter(Boolean);
+  return [z.src === 'pack' ? 'pack' : z.gen ? 'hub' : 'chat', qs.length && qs.filter(isCalc).length * 2 >= qs.length ? 'calc' : 'con'];
+}
+// "From chat" is the usual case, so rows only name the other sources.
+const tagHtml = ts => ts.filter(t => t !== 'chat').map(t => `<span class="tag${t === 'calc' ? ' t-calc' : t === 'con' ? ' t-con' : t === 'pack' ? ' t-pack' : ''}">${TAGL[t]}</span>`).join('');
+const rerender = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
+const qfKey = (key, tab) => 'hub:qf:' + key + ':' + tab;
+const menuBtn = (label, cls) => `<button type="button" class="iconb qmore${cls || ''}" data-mb aria-haspopup="true" aria-expanded="false" aria-label="${esc(label)}">${icon('dots')}</button>`;
+const menuItem = (act, ic, label, id, bad) => `<button type="button" class="copt mi${bad ? ' bad' : ''}" role="menuitem" data-act="${act}"${id ? ` data-id="${esc(id)}"` : ''}>${icon(ic)}<span>${label}</span></button>`;
+// items: [[id, doc, rowHtml(inner), cellsHtml]]; tab is 'quizzes' or 'exams'.
+function qlist(key, tab, items) {
+  const all = items.map(it => it.concat([qTags(it[1])])), kinds = ['pack', 'hub', 'chat', 'calc', 'con'].filter(t => all.some(it => it[4].includes(t)));
+  let f = ssGet(qfKey(key, tab)) || 'all'; if (!kinds.includes(f)) f = 'all';
+  const showF = all.length > 6 && kinds.length > 2, shown = showF && f !== 'all' ? all.filter(it => it[4].includes(f)) : all;
+  const sel = SEL && SEL.key === key && SEL.tab === tab ? SEL : null, noun = tab === 'exams' ? 'exam' : 'quiz';
+  const filt = showF ? `<div class="cfilt"><button type="button" class="btn out sm cfbtn" data-mb aria-haspopup="true" aria-expanded="false">${icon('filter')}${f === 'all' ? 'Filter' : TAGL[f]}</button>
+    <div class="cmenu" hidden role="menu">${[['all', 'All']].concat(kinds.map(k => [k, TAGL[k]])).map(([v, l]) => `<label class="copt"><input type="radio" name="qf" data-qf="${v}"${v === f ? ' checked' : ''}><span>${l}</span><span class="n">${v === 'all' ? all.length : all.filter(it => it[4].includes(v)).length}</span></label>`).join('')}</div></div>` : '';
+  const bar = sel ? selBar(sel, shown.length) : `<div class="lbar">${filt}<span class="sp"></span><div class="cfilt">${menuBtn(tab === 'exams' ? 'Exam list options' : 'Quiz list options')}
+    <div class="cmenu" hidden role="menu">${menuItem('pset', 'gear', 'Settings')}${menuItem('pshare', 'share', 'Share…')}${menuItem('psel', 'check', 'Select')}</div></div></div>`;
+  const rows = shown.map(([id, z, inner, cells, ts]) => sel
+    ? `<label class="qrow pick"><input type="checkbox" data-pk="${esc(id)}"${sel.ids.has(id) ? ' checked' : ''} aria-label="Pick ${esc(z.title)}"><div>${inner.text}${ts.length ? `<div class="tags">${tagHtml(ts)}</div>` : ''}</div>${cells || ''}</label>`
+    : `<div class="qrow${tab === 'exams' ? ' exrow' : ''}"><div>${inner.text}${inner.tags || tagHtml(ts) ? `<div class="tags">${inner.tags || ''}${tagHtml(ts)}</div>` : ''}</div>${inner.btn}
+      <div class="cfilt qm">${menuBtn('More for ' + z.title)}<div class="cmenu" hidden role="menu">${menuItem('rename', 'edit', 'Rename', id)}${menuItem('share', 'share', 'Share', id)}${menuItem('del', 'trash', 'Delete', id, true)}</div></div>${cells || ''}</div>`).join('');
+  return `<div id="qlist" class="qlist" data-key="${esc(key)}" data-tab="${tab}" data-noun="${noun}">${bar}<div class="list">${rows || `<p class="empty">Nothing matches this filter.</p>`}</div></div>`;
+}
+function selBar(sel, nShown) {
+  const n = sel.ids.size;
+  return `<div class="lbar sel" role="toolbar" aria-label="Selection"><span class="n" aria-live="polite">${n ? `${n} picked` : sel.act === 'share' ? 'Pick what to share' : 'Pick quizzes'}</span><span class="sp"></span>
+    <button type="button" class="btn out sm" data-act="sall">${n && n >= nShown ? 'None' : 'All'}</button>
+    <button type="button" class="btn sm" data-act="sshare"${n ? '' : ' disabled'}>${icon('share')}Share</button>
+    ${sel.act === 'share' ? '' : `<button type="button" class="btn out sm" data-act="sdel"${n ? '' : ' disabled'}>${icon('trash')}Delete</button>`}
+    <button type="button" class="btn out sm" data-act="sdone">Done</button></div>`;
+}
+const docOf = id => Store.all('quizzes')[id] ? ['quizzes', Store.all('quizzes')[id]] : Store.all('exams')[id] ? ['exams', Store.all('exams')[id]] : [null, null];
+function delDocs(ids) { ids.forEach(id => { const [c] = docOf(id); if (!c) return; Store.remove(c + '/' + id); if (c === 'quizzes' && Store.get('progress/' + id)) Store.remove('progress/' + id); }); }
+function menuSet(b, on) { const m = b.nextElementSibling; if (!m) return; m.hidden = !on; b.setAttribute('aria-expanded', String(on)); if (on) { const f = m.querySelector('input:checked, .mi, input'); if (f) f.focus(); } }
+const closeMenus = except => document.querySelectorAll('#qlist [data-mb][aria-expanded="true"]').forEach(b => { if (b !== except) menuSet(b, false); });
+document.addEventListener('pointerdown', e => { if (!e.target.closest('#qlist .cfilt')) closeMenus(); });
+document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; const b = document.querySelector('#qlist [data-mb][aria-expanded="true"]'); if (b) { menuSet(b, false); b.focus(); } });
+document.addEventListener('change', e => {
+  const L = e.target.closest('#qlist'); if (!L) return;
+  if (e.target.dataset.qf) { ssSet(qfKey(L.dataset.key, L.dataset.tab), e.target.dataset.qf); return rerender(); }
+  if (e.target.dataset.pk && SEL) { const id = e.target.dataset.pk; e.target.checked ? SEL.ids.add(id) : SEL.ids.delete(id);
+    $('#qlist .lbar').outerHTML = selBar(SEL, L.querySelectorAll('[data-pk]').length); }
+});
+document.addEventListener('click', async e => {
+  const L = e.target.closest('#qlist'); if (!L) return;
+  const mb = e.target.closest('[data-mb]'); if (mb) { closeMenus(mb); return menuSet(mb, mb.getAttribute('aria-expanded') !== 'true'); }
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  closeMenus(); const act = a.dataset.act, id = a.dataset.id, key = L.dataset.key, tab = L.dataset.tab, noun = L.dataset.noun;
+  if (act === 'pset') { ssSet('hub:ptab', tab === 'exams' ? 'exams' : 'study'); return setTimeout(palOpen); }
+  if (act === 'pshare' || act === 'psel') { SEL = { key, tab, ids: new Set(), act: act === 'pshare' ? 'share' : '' }; return rerender(); }
+  if (act === 'sdone') { SEL = null; return rerender(); }
+  if (act === 'sall' && SEL) { const ps = [...L.querySelectorAll('[data-pk]')].map(x => x.dataset.pk), none = SEL.ids.size >= ps.length;
+    SEL.ids = new Set(none ? [] : ps); return rerender(); }
+  if (act === 'sshare' && SEL && SEL.ids.size) { if (await sharePack([...SEL.ids])) { SEL = null; rerender(); } return; }
+  if (act === 'sdel' && SEL && SEL.ids.size) { const n = SEL.ids.size;
+    if (await askDlg({ title: `Delete ${n} ${n === 1 ? noun : noun === 'quiz' ? 'quizzes' : 'exams'}?`, body: 'Your answers stay in your progress and concept scores. Only the list entries go.', ok: 'Delete', bad: true })) { delDocs([...SEL.ids]); SEL = null; rerender(); } return; }
+  const [c, z] = docOf(id); if (!z) return;
+  if (act === 'share') return sharePack([id]);
+  if (act === 'rename') { const t = await askDlg({ title: 'Rename', label: 'New name', input: z.title || '', ok: 'Rename' });
+    if (t && t !== z.title) { Store.update(c + '/' + id, { title: t, renamed: true }); rerender(); } return; }
+  if (act === 'del' && await askDlg({ title: `Delete “${z.title}”?`, body: 'Your answers stay in your progress and concept scores. Only this ' + noun + ' goes.', ok: 'Delete', bad: true })) { delDocs([id]); rerender(); }
+});
+// Settings, Features, Export: go to a unit's quiz list in select mode.
+document.addEventListener('click', e => { if (!e.target.closest('#xpb')) return;
+  const r = parse(), us = unitList(), key = r.kind === 'unit' ? r.id : (us[0] || {}).key; if (!key) return;
+  palClose(false); SEL = { key, tab: r.kind === 'unit' && r.tab === 'exams' ? 'exams' : 'quizzes', ids: new Set(), act: 'share' };
+  const h = '#/u/' + encodeURIComponent(key) + (SEL.tab === 'exams' ? '/exams' : '');
+  if (location.hash === h) rerender(); else location.hash = h; });
 document.addEventListener('click', e => { if (e.target.closest('#impb')) { const f = $('#impf'); if (f) { f.value = ''; f.click(); } } });
 document.addEventListener('change', e => {
   if (e.target.id !== 'impf' || !e.target.files || !e.target.files[0]) return;
@@ -1356,14 +1512,14 @@ function exReview(id, z, Q, sid, back) {
 function examsBody(u) {
   const xs = examsOf(u.key);
   if (!xs.length) return `<p class="empty">No practice exams yet. ${SOLO ? IMPORT_HINT : 'Tap <b>New</b> above and pick <b>Practice exam</b>.'}</p>`;
-  return `<div class="list">${xs.map(([id, z]) => {
+  return qlist(u.key, 'exams', xs.map(([id, z]) => {
     const ss = sitsOf(id), live = ss.find(([, s]) => !s.done), done = ss.filter(([, s]) => s.done);
     const best = done.map(([, s]) => exScore(z, s)).sort((a, b) => b.got - a.got)[0];
     const label = live ? 'Continue' : done.length ? 'Retake' : 'Start';
     const tags = (live ? '<span class="tag live">In progress</span>' : '') + (best ? `<span class="tag">Best ${best.got}/${best.total}</span><span class="tag">${done.length} ${done.length === 1 ? 'attempt' : 'attempts'}</span>` : '');
-    return `<div class="qrow exrow"><div><h3>${esc(z.title)}</h3><div class="meta"><span class="n">${z.qids.length}</span> questions · <span class="n">${exTotal(z)}</span> marks · <span class="n">${z.minutes || 60}</span> min</div>${tags ? `<div class="tags">${tags}</div>` : ''}</div>
-      <a class="btn ${done.length && !live ? 'out ' : ''}sm" href="#/exam/${encodeURIComponent(id)}" aria-label="${label} ${esc(z.title)}">${label}${icon('right')}</a></div>`;
-  }).join('')}</div>`;
+    return [id, z, { text: `<h3>${esc(z.title)}</h3><div class="meta"><span class="n">${z.qids.length}</span> questions · <span class="n">${exTotal(z)}</span> marks · <span class="n">${z.minutes || 60}</span> min</div>`, tags,
+      btn: `<a class="btn ${done.length && !live ? 'out ' : ''}sm" href="#/exam/${encodeURIComponent(id)}" aria-label="${label} ${esc(z.title)}">${label}${icon('right')}</a>` }, ''];
+  }));
 }
 
 // ---------- home ----------
@@ -1434,7 +1590,7 @@ function showUnit(key, tab, view) {
   const S = stats(), x = unitStats(key, S), e = examParts(u), K = encodeURIComponent(key);
   const cur = t => tab === t ? ' aria-current="page"' : '', nEx = examsOf(key).length, cc = contentCount(key);
   const cd = e ? (e.days > 0 ? `<div class="cd"><b>${e.days}</b><span>${e.days === 1 ? 'day' : 'days'} to ${e.test ? esc(e.label) : 'exam'}</span><small>${esc(e.when)}</small></div>` : `<div class="cd"><span>${esc(daysTxt(e, u))}</span><small>${esc(e.when)}</small></div>`) : `<div class="cd"><span>${u.noExam ? 'No exam' : 'No exam date yet'}</span></div>`;
-  const rec = recOf(key, S), acts = `<div class="acts">${recBtn(rec)}${SOLO ? '' : `<button class="btn${rec ? ' out' : ''}" id="newb">${icon('plus')}New</button>`}</div>`;
+  const rec = recOf(key, S), acts = `<div class="acts">${recBtn(rec)}<button class="btn${rec ? ' out' : ''}" id="newb">${icon('plus')}${SOLO ? 'Import' : 'New'}</button></div>`;
   const head = `<section class="uhead u" ${uAttr(key)}><p class="code">${esc(u.unit)}</p><h1>${esc(u.name || u.unit)}</h1>
     <div class="row">${cd}${acts}</div>
     <nav class="tabs" aria-label="${esc(u.unit)} sections">
@@ -1444,22 +1600,22 @@ function showUnit(key, tab, view) {
       <a href="#/u/${K}/exams"${cur('exams')}>${icon('exam')}Exams<span class="ct">${nEx}</span></a></nav></section>`;
   const body = tab === 'progress' ? conceptsBar(u, x, S, view) + (view === 'mistakes' ? mistakesBody(u, S) : progressBody(u, x, S)) : tab === 'content' ? contentBody(u) : tab === 'exams' ? examsBody(u) : quizzesBody(u, x);
   app().innerHTML = topbar({ href: '#/', label: 'All units' }) + `<main class="wrap">${head}<div class="upage">${reqsBox(key)}${body}</div></main>`;
-  if ($('#newb')) $('#newb').onclick = () => openNew(key); wireReqs();
+  if ($('#newb')) $('#newb').onclick = () => openNew(key, SOLO ? 'import' : ''); wireReqs();
   if (tab === 'progress') { if (view === 'mistakes') wireMistakes(key); else wireWeeks(key);
     document.querySelectorAll('[data-cv]').forEach(b => b.onclick = () => { location.hash = '#/u/' + K + (b.dataset.cv === 'mistakes' ? '/mistakes' : '/concepts'); }); }
   if (tab === 'content') wireContent(key);
 }
 function quizzesBody(u, x) {
   if (!x.quizzes.length) return `<p class="empty">No quizzes yet. ${SOLO ? IMPORT_HINT : 'Tap <b>New</b> above to make one from your notes.'}</p>`;
-  return `<div class="list">${x.quizzes.sort((a, b) => a[1].created < b[1].created ? 1 : -1).map(([id, z]) => {
+  return qlist(u.key, 'quizzes', x.quizzes.sort((a, b) => a[1].created < b[1].created ? 1 : -1).map(([id, z]) => {
     const lat = latestIn(id), pr = Store.get('progress/' + id) || {}, sk = new Set(pr.skipped || []);
     const d = z.qids.filter(q => lat[q]), right = d.filter(q => lat[q].ok).length;
     const label = !d.length ? 'Start' : d.length >= z.qids.length ? 'Review' : 'Continue';
     const meta = d.length ? `<span class="n">${d.length} of ${z.qids.length}</span> answered · <span class="n">${right}</span> right` : `<span class="n">${z.qids.length}</span> questions`;
-    return `<div class="qrow"><div><h3>${esc(z.title)}</h3><div class="meta">${meta}</div></div>
-      <a class="btn ${d.length >= z.qids.length ? 'out ' : ''}sm" href="#/quiz/${encodeURIComponent(id)}" aria-label="${label} ${esc(z.title)}">${label}${icon('right')}</a>
-      <div class="cells" aria-hidden="true">${z.qids.map(q => `<i class="cell">${mark(markKind(lat[q], sk.has(q)))}</i>`).join('')}</div></div>`;
-  }).join('')}</div>`;
+    return [id, z, { text: `<h3>${esc(z.title)}</h3><div class="meta">${meta}</div>`,
+      btn: `<a class="btn ${d.length >= z.qids.length ? 'out ' : ''}sm" href="#/quiz/${encodeURIComponent(id)}" aria-label="${label} ${esc(z.title)}">${label}${icon('right')}</a>` },
+      `<div class="cells" aria-hidden="true">${z.qids.map(q => `<i class="cell">${mark(markKind(lat[q], sk.has(q)))}</i>`).join('')}</div>`];
+  }));
 }
 function progressBody(u, x, S) {
   if (!x.cs.length) return '<p class="empty">No concepts yet. They appear once a quiz is added.</p>';
@@ -1711,7 +1867,8 @@ function parse() {
   return { kind: 'home' };
 }
 function render() {
-  const r = parse(); window.scrollTo(0, 0); flagOpen = false; drawMark = false; palClose(false); exStop(); ex = null;
+  const r = parse(); window.scrollTo(0, 0); flagOpen = false;
+  if (SEL && !(r.kind === 'unit' && r.id === SEL.key && r.tab === SEL.tab)) SEL = null; drawMark = false; palClose(false); exStop(); ex = null;
   if (r.kind === 'progress') { // old link: send it to the first unit that has concepts
     const S = stats(), u = unitList().find(x => unitStats(x.key, S).cs.length);
     location.replace(u ? '#/u/' + encodeURIComponent(u.key) + '/concepts' : '#/'); return;
@@ -1801,16 +1958,37 @@ function weakWeeks(key, n) { // weeks holding the weakest concepts; untried coun
 // ----- the "+ New" dialog -----
 let mk = null, mkCtl = null;
 function mkDlg() { let d = $('#mkd'); if (!d) { document.body.insertAdjacentHTML('beforeend', '<dialog class="dlg mkd" id="mkd" aria-labelledby="mkd-t"></dialog>'); d = $('#mkd'); d.addEventListener('close', () => { if (mkCtl) mkCtl.abort(); }); } return d; }
-function openNew(key) {
+function openNew(key, kind) {
   const u = unitList().find(x => x.key === key); if (!u) return;
-  mk = { key, unit: u.unit, kind: 'quiz', weeks: new Set(), n: 10, min: 45, focus: '', busy: false, msg: '' };
+  mk = { key, unit: u.unit, kind: kind || 'quiz', weeks: new Set(), n: 10, min: 45, focus: '', busy: false, msg: '' };
   const d = mkDlg(); drawNew(); d.showModal();
 }
+const kindSeg = o => SOLO ? '' : `<div class="mkrow"><span class="seg" role="group" aria-label="kind">${[['quiz', 'Quiz'], ['exam', 'Practice exam'], ['import', 'Import']].map(([v, l]) => `<button type="button" data-kind="${v}" aria-pressed="${v === o.kind}">${l}</button>`).join('')}</span></div>`;
+// Import: a quiz pack file (.json) from the ma-study skills or another hub's Export.
+function drawImport() {
+  const d = mkDlg(), o = mk;
+  d.innerHTML = `<form method="dialog" class="mkf"><h2 id="mkd-t">${SOLO ? 'Import a quiz pack' : `New for ${esc(o.unit)}`}</h2>${kindSeg(o)}
+    <p class="small">A quiz pack is a .json file of quizzes and practice exams, exported from another Study Hub or made with the ma-study skills. Importing one again updates it.</p>
+    <div id="mkst" class="mkst" role="status">${o.msg}</div>
+    <input type="file" id="mkfile" accept=".json,application/json" hidden>
+    <div class="qnav">${o.done ? `<button type="button" class="btn" id="mkx">Done</button>`
+      : `<button type="button" class="btn out" id="mkx">Cancel</button><button type="button" class="btn" id="mkimp">${icon('plus')}Choose pack file</button>`}</div></form>`;
+  d.querySelectorAll('[data-kind]').forEach(b => b.onclick = () => { o.kind = b.dataset.kind; o.msg = ''; o.done = false; drawNew(); });
+  $('#mkx').onclick = () => d.close();
+  if ($('#mkimp')) $('#mkimp').onclick = () => $('#mkfile').click();
+  $('#mkfile').onchange = e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const show = (m, ok) => { o.msg = m; o.done = ok; drawImport(); const b = $(ok ? '#mkx' : '#mkimp'); if (b) b.focus(); if (ok) render(); };
+    if (f.size > 5e6) return show('That file is over 5 MB, too big for a quiz pack.');
+    f.text().then(t => show(importPack(t), true)).catch(err => show('Couldn’t import: ' + (err && err.safe ? err.message : esc(String(err && err.message || 'unknown error')))));
+  };
+}
 function drawNew() {
+  if (mk.kind === 'import') return drawImport();
   const d = mkDlg(), o = mk, ws = weeksOf(o.key), quiz = o.kind === 'quiz', canAsk = SAMPLE !== null;
   const seg = (name, opts, cur) => `<span class="seg" role="group" aria-label="${name}">${opts.map(([v, l]) => `<button type="button" data-${name}="${v}" aria-pressed="${String(v) === String(cur)}">${l}</button>`).join('')}</span>`;
   d.innerHTML = `<form method="dialog" class="mkf"><h2 id="mkd-t">New for ${esc(o.unit)}</h2>
-    <div class="mkrow">${seg('kind', [['quiz', 'Quiz'], ['exam', 'Practice exam']], o.kind)}</div>
+    ${kindSeg(o)}
     ${ws.length ? `<fieldset class="mkrow"><legend>Weeks <small>${o.weeks.size ? '' : quiz ? '· none picked = your weak spots' : '· none picked = whole unit'}</small></legend>
       <div class="wkchips">${ws.map(w => hasSrc(o.key, w) ? `<button type="button" class="wchip" data-wk="${w}" aria-pressed="${o.weeks.has(w)}">${w}</button>` : `<button type="button" class="wchip" disabled title="No slides or lecture transcripts stored for week ${w} yet">${w}</button>`).join('')}</div></fieldset>` : ''}
     <div class="mkrow"><span class="lbl">${quiz ? 'Questions' : 'Length'}</span>${quiz ? seg('n', [[5, '5'], [10, '10'], [15, '15']], o.n) : seg('min', [[30, '30 min'], [45, '45 min'], [60, '60 min']], o.min)}</div>
@@ -1820,7 +1998,7 @@ function drawNew() {
       : `<button type="button" class="btn out" id="mkx">Cancel</button>${canAsk ? `<button type="button" class="btn" id="mkgo">${icon('spark')}Make it</button>` : `<button type="button" class="btn" id="mkq">Send to Claude</button>`}`}</div>
     ${!o.busy && canAsk ? `<button type="button" class="linkb" id="mkq">Or send it to Claude in chat instead</button>` : ''}
     ${!canAsk && !o.busy ? '<p class="muted small">It will be waiting next time you open Claude chat.</p>' : ''}</form>`;
-  d.querySelectorAll('[data-kind]').forEach(b => b.onclick = () => { o.kind = b.dataset.kind; o.focus = $('#mkfocus').value; drawNew(); });
+  d.querySelectorAll('[data-kind]').forEach(b => b.onclick = () => { o.kind = b.dataset.kind; o.focus = $('#mkfocus').value; o.msg = ''; drawNew(); });
   d.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { o.n = +b.dataset.n; o.focus = $('#mkfocus').value; drawNew(); });
   d.querySelectorAll('[data-min]').forEach(b => b.onclick = () => { o.min = +b.dataset.min; o.focus = $('#mkfocus').value; drawNew(); });
   d.querySelectorAll('[data-wk]').forEach(b => b.onclick = () => { const w = +b.dataset.wk; o.weeks.has(w) ? o.weeks.delete(w) : o.weeks.add(w); o.focus = $('#mkfocus').value; drawNew(); });
@@ -2049,7 +2227,7 @@ sampleReady.then(s => { if (s === null) document.querySelectorAll('[data-ask]').
 
 // ---------- report a problem ----------
 // Reports go to the `reports` collection. Claude files queued ones as GitHub issues on the ma-study repo.
-const HUB_VERSION = '1.5.0';
+const HUB_VERSION = '1.6.0';
 const BUILD = HUB_VERSION;
 // Home-page notices: a newer ma-study release (Claude writes prefs/app when it checks GitHub) and a one-time pin tip.
 const verGt = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
