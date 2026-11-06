@@ -50,6 +50,16 @@ Building a whole unit uses a fair share of your Claude usage. If it stops partwa
 
 **Tip:** pin your Study Hub so it's always in your Claude sidebar. Ask Claude to "pin my Study Hub".
 
+## Without Claude (Codex or another agent)
+
+You don't need Claude to use a Study Hub.
+
+1. Get the standalone Study Hub file from a friend who has Claude. They ask Claude to *"export my Study Hub for sharing"*.
+2. Open the file in a browser. Your progress saves in that browser, so keep using the same one.
+3. To make more quizzes, use [Codex CLI](https://github.com/openai/codex) or another coding agent. Copy or symlink `skills/ma-study-notes` and `skills/ma-study-pack` into `~/.codex/skills`. Or just open this repo folder in the agent, and it reads `AGENTS.md`.
+4. Ask it: *"make a quiz pack for ECE4179 weeks 11–12"*. It needs your notes first (see ma-study-notes), and it saves a `.json` file in `~/University/ECE4179/packs/`.
+5. In your Study Hub, go to **Settings → Features → Quiz packs → Import** and pick that file.
+
 ## Report a problem
 
 Use the **Report** button at the top of the Study Hub. Claude checks with you in chat before posting it as an issue here, then replies on the issue with a plan to fix it. This repo is public, so leave out personal details.
