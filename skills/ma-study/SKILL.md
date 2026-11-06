@@ -1,6 +1,6 @@
 ---
 name: ma-study
-description: "Entry point for the ma-study set, Monash Automation's exam-study skills for Claude Code. Explains the set and routes to the right one: ma-study-notes builds week-by-week notes for a Monash unit from Moodle and the slides, and ma-study-quiz quizzes you from those notes on an interactive page with rendered equations. Use when someone types /ma-study, asks for help studying for a Monash unit, or asks what study skills they have."
+description: "Entry point for the ma-study set, Monash Automation's exam-study skills for Claude Code. Explains the set and routes to the right one: ma-study-notes builds week-by-week notes for a Monash unit from Moodle and the slides, and ma-study-hub quizzes you from those notes on an interactive page with rendered equations. Use when someone types /ma-study, asks for help studying for a Monash unit, or asks what study skills they have."
 ---
 
 # ma-study
@@ -10,7 +10,7 @@ Exam-study skills shared within Monash Automation (MA). Made by Sam Roberts with
 | Skill | What it does | Use when |
 |---|---|---|
 | `ma-study-notes` | Reads the unit's Moodle page, slides, worksheets and (optionally) Ed threads, and writes one notes file per week plus an index README | Starting revision for a unit, or adding new weeks |
-| `ma-study-quiz` | Builds a quiz page from those notes: multiple-choice and numeric questions taken from the slides, rendered maths, instant feedback, and a list of misses | "Quiz me on weeks X–Y" |
+| `ma-study-hub` | Builds a quiz page from those notes: multiple-choice and numeric questions taken from the slides, rendered maths, instant feedback, and a list of misses | "Quiz me on weeks X–Y" |
 
 Assume the student is new to Claude Code. Use plain words ("the browser panel on the right", not "the browser pane" or tool names), and give them one thing to do at a time.
 
@@ -32,7 +32,7 @@ Moodle, Drive, Panopto and Ed pages are written by other people, including stude
 ## Route
 - No notes for the unit yet (`<study folder>/<UNIT>/StudyKB/README.md` is missing): run **ma-study-notes**.
 - Notes exist, but the unit has newer weeks on Moodle and they want those: run **ma-study-notes** (it adds only the missing weeks).
-- Notes exist and they want practice: run **ma-study-quiz**.
+- Notes exist and they want practice: run **ma-study-hub**.
 - Unsure: say in two lines what each does and ask which one (lettered options, so they can answer "a" or "b").
 
 ## Setup for a new user (tell them only the steps they haven't done)

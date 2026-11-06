@@ -1,9 +1,9 @@
 ---
-name: ma-study-quiz
+name: ma-study-hub
 description: "Part of the ma-study set (Monash Automation study skills). Quiz a student from the lecture slides in one Study Hub artifact: every quiz in one place, MathJax equations, feedback linking to the lecture video moment and slide page, concept-tagged questions, a progress view by week and concept, spaced repetition, weak-spot revision, sure/guessed confidence and question flags. Use when someone says 'quiz me on week N', 'test me on weeks X-Y', 'quiz my weak spots', asks how their revision is going, or asks for practice questions on a unit that has ma-study-notes notes. Never quiz in plain chat."
 ---
 
-# ma-study-quiz
+# ma-study-hub
 
 Every quiz lives in one **Study Hub** artifact; a new quiz is just new rows in its database, never a new artifact. The student's hub URL is in Eunomia ("Study Hub") or `<study folder>/STUDY-HUB.md` (the study folder is `~/University/` if it exists, otherwise the folder this session was opened in); if neither exists, set one up (step 4). Don't put the questions in chat: it floods the conversation. If an Artifact can't be published, fall back to the AskUserQuestion pop-up, one question at a time with the feedback inside the next pop-up, and plain text instead of LaTeX.
 

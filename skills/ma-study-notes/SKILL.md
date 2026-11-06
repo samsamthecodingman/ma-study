@@ -1,6 +1,6 @@
 ---
 name: ma-study-notes
-description: "Part of the ma-study set (Monash Automation study skills). Build exam-study notes for a Monash unit: scrape its Moodle page, read slides and worksheets from Google Drive, pull Ed forum clarifications, and save one notes file per week plus an index README. Use when someone asks to 'gather everything for <unit> for exam study', 'scrape the unit page', 'build study notes for <unit>', or wants a unit's week-by-week content captured. For quizzing on existing notes, use ma-study-quiz."
+description: "Part of the ma-study set (Monash Automation study skills). Build exam-study notes for a Monash unit: scrape its Moodle page, read slides and worksheets from Google Drive, pull Ed forum clarifications, and save one notes file per week plus an index README. Use when someone asks to 'gather everything for <unit> for exam study', 'scrape the unit page', 'build study notes for <unit>', or wants a unit's week-by-week content captured. For quizzing on existing notes, use ma-study-hub."
 ---
 
 # ma-study-notes
@@ -36,7 +36,7 @@ Then wait for "done". Only ask for more if it actually comes up:
 ## 2. Map the unit (you, inline)
 
 - Find the unit's Moodle course id. Read the course index with `javascript_tool` on the unit page: `li.section` / `[data-for="section"]` items give `section=N` URLs and titles. Note the week sections plus unit info, schedule, assessments/exam and resources.
-- **Work out which weeks to build.** Start from their answer to question 1. If `StudyKB/` already exists, list the `week-NN-*.md` files there and skip those weeks unless they chose 1a (redo everything) or named those weeks in 1b. Weeks on Moodle with no content yet (future weeks) are skipped too. If nothing is left to build, say so and offer **ma-study-quiz**.
+- **Work out which weeks to build.** Start from their answer to question 1. If `StudyKB/` already exists, list the `week-NN-*.md` files there and skip those weeks unless they chose 1a (redo everything) or named those weeks in 1b. Weeks on Moodle with no content yet (future weeks) are skipped too. If nothing is left to build, say so and offer **ma-study-hub**.
 - Check whether the Drive connector works: `get_file_metadata` on one Drive file ID from a week page. If it works, agents read everything through it. Downloading through the browser's Drive viewer fails (CORS and a viewer made of images), so don't try.
 - **Ed source:** if an Eunomia server is connected and has Ed synced, search it. Otherwise use the browser (read-only; see **Reading Ed** below). Open `https://edstem.org/au/dashboard` (Monash uses the `au` region). If it shows a login page, ask them to sign in there with their Monash account and say done; if they'd rather not, skip Ed and list it as a gap. Click the unit's course card (e.g. "ECE4179 S2 2026") and note the course URL `https://edstem.org/au/courses/<cid>/discussion`.
 - If Eunomia is connected, `entities_search "<UNIT>"` and reuse an existing organisation entity for the unit as the hub.
@@ -80,7 +80,7 @@ The rules below apply whether you build the weeks yourself or through agents. Ea
 For a test week (e.g. an MST), cover the scope and format, the practice paper with worked solutions, and the cheat-sheet or formula-sheet rules instead of new concepts.
 
 ### Raw text
-Always save the full extracted slide and worksheet text to `sources/week-NN-<name>.txt`, even when it's long. That's what makes ma-study-quiz faithful to the slides.
+Always save the full extracted slide and worksheet text to `sources/week-NN-<name>.txt`, even when it's long. That's what makes ma-study-hub faithful to the slides.
 
 ### Eunomia (only if connected)
 - `document_upload` the week .md. The upload can be condensed (about 4–6 KB) if the full file is large; say so in the README.
@@ -97,4 +97,4 @@ Always save the full extracted slide and worksheet text to `sources/week-NN-<nam
    - The Moodle URL pattern.
    - **Known gaps:** unreadable solutions, missing practice papers, unprocessed videos and notebooks, items to double-check.
 2. If Eunomia is connected: upload the README as `<UNIT>-StudyKB-README.md`, and write hub memories on the unit entity (type world): notes location, weekly topics, doc ids, "read course files via the Drive connector", examinability rulings.
-3. **Verify:** `ls` shows every week file; with Eunomia, `document_list` shows each doc `ready`. Then report in a few lines: what's built, the exam facts, the gaps to act on, and that **ma-study-quiz** can now quiz them.
+3. **Verify:** `ls` shows every week file; with Eunomia, `document_list` shows each doc `ready`. Then report in a few lines: what's built, the exam facts, the gaps to act on, and that **ma-study-hub** can now quiz them.
