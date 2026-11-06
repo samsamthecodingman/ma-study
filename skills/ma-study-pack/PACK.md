@@ -34,7 +34,7 @@ Optional on any question: `e` (explanation), `s` (source, like `"slide · Transf
 
 **exam**: `unit`, `title`, `qids` (as for a quiz), optional `minutes` (above 0), `marks` (object of question id to marks, default 1 each), `intro` (HTML).
 
-**meta**: keyed by the unit in lowercase. `unit`, `name` (the unit title), `examDate` (like `"2026-11-12T10:30"`).
+**meta**: keyed by the unit in lowercase. `unit`, `name` (the unit title), `examDate` (like `"2026-11-12T10:30"`), optional `weeks` (teaching week number to the Monday it starts, like `{"1": "2026-07-27", "9": "2026-09-28"}`; leave break weeks out).
 
 ## Rules the importer checks
 
