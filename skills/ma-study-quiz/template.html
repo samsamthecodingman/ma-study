@@ -22,10 +22,10 @@ window.PRESETS = [ // the first is the default
     fonts: 'family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Figtree:wght@400..800', units: [30, 190, 85, 320, 145] },
   { id: 'lagoon', name: 'Lagoon', ha: 205, ca: .14, hb: 215, cb: .025, uc: .09, display: 'Unbounded', body: 'DM Sans',
     fonts: 'family=Unbounded:wght@400..800&family=DM+Sans:opsz,wght@9..40,400..700', units: [195, 155, 255, 45, 300] },
-  { id: 'macaron', name: 'Macaron', ha: 355, ca: .15, hb: 35, cb: .018, uc: .06, display: 'Fraunces', body: 'Work Sans',
-    fonts: 'family=Fraunces:opsz,wght@9..144,400..800&family=Work+Sans:wght@400..700', units: [20, 145, 95, 240, 305] },
-  { id: 'matcha', name: 'Matcha', ha: 255, ca: .16, hb: 130, cb: .028, uc: .09, display: 'Instrument Serif', body: 'Figtree',
-    fonts: 'family=Instrument+Serif:ital@0;1&family=Figtree:wght@400..800', units: [130, 255, 70, 20, 190] },
+  { id: 'macaron', name: 'Macaron', ha: 355, ca: .15, hb: 35, cb: .018, uc: .06, display: 'Besley', body: 'Work Sans',
+    fonts: 'family=Besley:wght@400..800&family=Work+Sans:wght@400..700', units: [20, 145, 95, 240, 305] },
+  { id: 'matcha', name: 'Matcha', ha: 255, ca: .16, hb: 130, cb: .028, uc: .09, display: 'Gloock', body: 'Figtree',
+    fonts: 'family=Gloock&family=Figtree:wght@400..800', units: [130, 255, 70, 20, 190] },
   { id: 'hall', name: 'Exam hall', ha: 262, ca: .16, hb: 250, cb: .01, uc: .08, display: 'Atkinson Hyperlegible Next', body: 'Atkinson Hyperlegible Next',
     fonts: 'family=Atkinson+Hyperlegible+Next:wght@400..800', units: [262, 150, 30, 75, 300] }
 ];
@@ -557,7 +557,7 @@ const Store = {
         try { const s = await db.collection(c).get(); s.docs.forEach(d => { if (d.exists) this.data[c][d.id] = d.data(); }); }
         catch (e) { noteFail(); }
       } else if (CONTENT.includes(c)) {
-        this.data[c] = JSON.parse(JSON.stringify(seed[c] || {}));
+        let loc = {}; try { loc = JSON.parse(lsGet('hub:' + c) || '{}') || {}; } catch (e) {} this.data[c] = Object.assign(JSON.parse(JSON.stringify(seed[c] || {})), loc); // local docs (imports, settings) over the seed
       } else {
         try { this.data[c] = JSON.parse(lsGet('hub:' + c) || '{}') || {}; } catch (e) { this.data[c] = {}; }
         if (window.HUB_SEED && window.HUB_SEED[c] && !Object.keys(this.data[c]).length) this.data[c] = JSON.parse(JSON.stringify(window.HUB_SEED[c]));
@@ -571,19 +571,19 @@ const Store = {
     const p = (this.chain[path] || Promise.resolve()).then(fn).catch(noteFail);
     this.chain[path] = p; return p;
   },
-  flush(c) { if (!lsSet('hub:' + c, JSON.stringify(this.all(c)))) noteFail(); },
+  flush(c, id) { let o = this.all(c); if (CONTENT.includes(c)) { o = {}; try { o = JSON.parse(lsGet('hub:' + c) || '{}') || {}; } catch (e) {} o[id] = this.all(c)[id]; } if (!lsSet('hub:' + c, JSON.stringify(o))) noteFail(); }, // content keeps only locally written docs
   set(path, obj) {
     const [c, id] = path.split('/'); this.all(c)[id] = obj;
-    if (this.db) this.queue(path, () => this.db.doc(path).set(obj)); else this.flush(c);
+    if (this.db) this.queue(path, () => this.db.doc(path).set(obj)); else this.flush(c, id);
   },
   update(path, patch) {
     const [c, id] = path.split('/'); this.all(c)[id] = Object.assign({}, this.all(c)[id], patch);
-    if (this.db) this.queue(path, () => this.db.doc(path).set(this.all(c)[id])); else this.flush(c);
+    if (this.db) this.queue(path, () => this.db.doc(path).set(this.all(c)[id])); else this.flush(c, id);
   },
   add(c, obj) {
     let id;
     if (this.db) { const ref = this.db.collection(c).doc(); id = ref.id; this.all(c)[id] = obj; this.queue(c + '/' + id, () => ref.set(obj)); }
-    else { id = 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); this.all(c)[id] = obj; this.flush(c); }
+    else { id = 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); this.all(c)[id] = obj; this.flush(c, id); }
     return id;
   }
 };
@@ -605,12 +605,12 @@ const unitKey = u => String(u || '').toLowerCase();
 // Leitner update. prev = srs doc before this attempt (or undefined).
 function srsApply(qid, ok, sure, prev) {
   const b = prev ? prev.box : 0;
-  const box = !ok ? 0 : sure ? Math.min(b + 1, 4) : Math.max(b, 0);
+  const box = !ok ? 0 : sure === 0.5 ? Math.max(b, Math.min(b + 1, 3)) : sure ? Math.min(b + 1, 4) : Math.max(b, 0);
   Store.set('srs/' + qid, { box, due: addDays(gaps()[box]), last: new Date().toISOString() });
 }
 
 // ---------- stats ----------
-const score = a => a.ok ? (a.sure === false ? 0.5 : 1) : 0;
+const score = a => a.ok ? (a.sure === false ? 0.5 : a.sure === 0.5 ? 0.75 : 1) : 0;
 function stats() {
   const Qs = Store.all('questions'), att = Object.entries(Store.all('attempts')).map(([id, a]) => Object.assign({ id }, a)).sort((a, b) => a.at < b.at ? 1 : a.at > b.at ? -1 : 0);
   const byQ = {}, con = {};
@@ -796,19 +796,22 @@ const daysTxt = (e, m) => !e ? (m && m.noExam ? 'No exam' : 'No exam date') : e.
 
 // ---------- app bar + theme panel ----------
 const LOGO = `<svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="2" width="28" height="28" rx="9" fill="var(--acc)"/><path d="M9 17c1.6 1.2 2.8 2.7 3.8 4.4C14.8 16 18 11.8 23 8.5" fill="none" stroke="var(--on-acc)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+// Standalone copy (made by tools/export-standalone.js): no Claude, so hide Claude-only controls.
+const SOLO = !!window.HUB_STANDALONE;
+const IMPORT_HINT = 'Import a quiz pack from Settings, Features.';
 const repBtn = () => `<button class="pal-btn" id="repb" title="Report a problem with the hub">${icon('flag')}<span class="lbl">Report</span></button>`;
 function topbar(back) {
   const us = unitList().slice(0, 2), dots = [`var(--acc)`].concat(us.map(u => dot(unitHue(u.key))));
   const left = back ? `<a class="crumb" href="${back.href}">${icon('left')}${esc(back.label)}</a>` : `<a class="brand" href="#/">${LOGO}<span class="wm">Study Hub</span></a>`;
   return `<header class="top"><div class="wrap">${left}<span class="sp"></span>
-    ${study().report ? repBtn() : ''}
+    ${study().report && !SOLO ? repBtn() : ''}
     <button class="pal-btn" id="palb" aria-expanded="false" aria-controls="pal"><span class="dots" aria-hidden="true">${dots.map(c => `<i style="background:${c}"></i>`).join('')}</span><span class="lbl">Settings</span></button></div></header>`;
 }
 let palFonts = false;
 function palOpen() {
   const p = $('#pal'); if (!p) return;
   if (!palFonts) { palFonts = true; const l = document.createElement('link'); l.rel = 'stylesheet';
-    l.href = 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700&family=Unbounded:wght@700&family=Syne:wght@700&family=Fraunces:wght@700&family=Instrument+Serif&family=Atkinson+Hyperlegible+Next:wght@700&display=swap'; document.head.appendChild(l); }
+    l.href = 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700&family=Unbounded:wght@700&family=Syne:wght@700&family=Besley:wght@700&family=Gloock&family=Atkinson+Hyperlegible+Next:wght@700&display=swap'; document.head.appendChild(l); }
   palRender(); p.hidden = false; const b = $('#palb'); if (b) b.setAttribute('aria-expanded', 'true');
   const f = p.querySelector('[aria-selected="true"]'); if (f) f.focus();
 }
@@ -875,7 +878,7 @@ function studyPanel() {
     ${stSeg('n', 'Revision session length', [[5, '5'], [10, '10'], [15, '15'], [20, '20']], o.n)}
     ${stSeg('pace', 'Review spacing', [['cram', 'Cram'], ['std', 'Normal'], ['relaxed', 'Relaxed']], o.pace)}
     <p class="hint">${o.pace === 'cram' ? 'Reviews come back after 1, 2, 4, 7, then 10 days. Best with an exam in the next two weeks.' : o.pace === 'relaxed' ? 'Reviews come back after 2, 5, 10, 21, then 45 days.' : 'Reviews come back after 1, 3, 7, 14, then 30 days.'} New spacing applies from your next answer.</p>
-    ${stOnOff('sure', 'Ask “Sure or guessed?”')}</div>`;
+    ${stOnOff('sure', 'Ask how sure you were')}</div>`;
 }
 function examPanel(us) {
   if (!us.length) return '<div><h3>Exams and tests</h3><p class="hint">No units yet.</p></div>';
@@ -888,10 +891,72 @@ function examPanel(us) {
       <button class="btn out sm" data-ta="${k}" style="margin-top:8px">${icon('plus')}Add mid-sem test</button></div>`; }).join('')
     + '<p class="hint">Each unit counts down to its next test or exam.</p>';
 }
+let impMsg = '';
 function featPanel() {
-  return `<div><h3>Add-ons</h3>${stOnOff('ask', 'Ask Claude button')}${stOnOff('report', 'Report button')}
-    <p class="hint">Switch extras on or off. New add-ons will appear here.</p></div>`;
+  return `<div><h3>Quiz packs</h3><div class="srow"><span>Add quizzes from a pack file</span><button class="btn out sm" id="impb">${icon('plus')}Import</button></div>
+    <input type="file" id="impf" accept=".json,application/json" hidden>
+    <p class="hint" id="imph" role="status">${impMsg || 'A pack is a .json file of quizzes, made with the ma-study skills in Claude Code or Codex. Importing one again updates it.'}</p></div>
+    ${SOLO ? '' : `<div><h3>Add-ons</h3>${stOnOff('ask', 'Ask Claude button')}${stOnOff('report', 'Report button')}
+    <p class="hint">Switch extras on or off. New add-ons will appear here.</p></div>`}`;
 }
+// ----- quiz packs: {format: 'ma-study-pack', version: 1, concepts, questions, quizzes, exams, meta}, each {id: doc} -----
+const PACK_COLS = ['concepts', 'questions', 'quizzes', 'exams', 'meta'];
+const PACK_ID = /^[A-Za-z0-9][\w.-]{0,99}$/;
+const packErr = m => { const e = new Error(m); e.safe = true; throw e; }; // message is already HTML-escaped
+function checkPack(p) {
+  const bad = packErr;
+  if (!p || typeof p !== 'object' || p.format !== 'ma-study-pack') bad('This file isn’t a quiz pack (no "format": "ma-study-pack").');
+  if (+p.version !== 1) bad('This pack is version ' + esc(String(p.version)) + '. This hub reads version 1.');
+  const str = (v, max) => typeof v === 'string' && v.length <= (max || 20000);
+  const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+  const out = {}; let n = 0;
+  for (const c of PACK_COLS) {
+    const docs = p[c] == null ? {} : p[c]; if (!isObj(docs)) bad(`"${c}" must be an object of id: document.`);
+    out[c] = {};
+    for (const [id, d] of Object.entries(docs)) {
+      const where = `${c}/${id}`;
+      if (!PACK_ID.test(id)) bad(`Bad id “${esc(id.slice(0, 40))}” in ${c}. Use letters, numbers, - _ or .`);
+      if (!isObj(d) || !str(d.unit, 40) || !d.unit) bad(`${esc(where)} needs a "unit" like "ECE4179".`);
+      if (c === 'questions') {
+        if (!str(d.q) || !d.q) bad(`${esc(where)} has no question text "q".`);
+        const mc = Array.isArray(d.o), num = typeof d.num === 'number' && isFinite(d.num), wr = str(d.ans) && !!d.ans;
+        if (mc && !(d.o.length >= 2 && d.o.length <= 4 && d.o.every(t => str(t, 4000)) && Number.isInteger(d.a) && d.a >= 0 && d.a < d.o.length)) bad(`${esc(where)}: "o" needs 2–4 options and "a" the index of the right one.`);
+        if (!mc && !num && !wr) bad(`${esc(where)} needs options "o" + "a", a number "num", or a model answer "ans".`);
+        if (d.tol != null && !(typeof d.tol === 'number' && d.tol >= 0)) bad(`${esc(where)}: "tol" must be a number ≥ 0.`);
+        if (d.concepts != null && !(Array.isArray(d.concepts) && d.concepts.every(x => str(x, 100)))) bad(`${esc(where)}: "concepts" must be a list of concept ids.`);
+        ['e', 's', 'w'].forEach(k => { if (d[k] != null && !str(d[k])) bad(`${esc(where)}: "${k}" must be text.`); });
+      } else if (c === 'quizzes' || c === 'exams') {
+        if (!str(d.title, 200) || !d.title) bad(`${esc(where)} needs a "title".`);
+        if (!Array.isArray(d.qids) || !d.qids.length) bad(`${esc(where)} needs "qids", a list of question ids.`);
+        const miss = d.qids.find(q => typeof q !== 'string' || !((p.questions || {})[q] || Store.all('questions')[q])); if (miss !== undefined) bad(`${esc(where)} lists question “${esc(String(miss).slice(0, 60))}”, which isn’t in the pack or the hub.`);
+        if (c === 'exams' && d.minutes != null && !(d.minutes > 0)) bad(`${esc(where)}: "minutes" must be a number above 0.`);
+      } else if (c === 'concepts' && (!str(d.name, 200) || !d.name)) bad(`${esc(where)} needs a "name".`);
+      out[c][id] = JSON.parse(JSON.stringify(d)); n++;
+    }
+  }
+  if (!n) bad('This pack is empty.'); if (n > 3000) bad('This pack is too big (over 3000 documents).');
+  return out;
+}
+function importPack(text) {
+  let p; try { p = JSON.parse(text); } catch (e) { packErr('This file isn’t valid JSON.'); }
+  const docs = checkPack(p), now = new Date().toISOString(); let added = 0, updated = 0;
+  for (const c of PACK_COLS) for (const [id, d] of Object.entries(docs[c])) {
+    if ((c === 'quizzes' || c === 'exams') && !d.created) d.created = now;
+    if (Store.all(c)[id]) updated++; else added++;
+    Store.set(c + '/' + id, d);
+  }
+  const nq = Object.keys(docs.quizzes).length, ne = Object.keys(docs.exams).length;
+  const what = [[nq, 'quiz', 'quizzes'], [ne, 'practice exam', 'practice exams'], [Object.keys(docs.questions).length, 'question', 'questions']].filter(x => x[0]).map(([k, a, b]) => `${k} ${k === 1 ? a : b}`).join(', ');
+  return `Imported ${what}${updated ? ` (${updated} updated)` : ''}.`;
+}
+document.addEventListener('click', e => { if (e.target.closest('#impb')) { const f = $('#impf'); if (f) { f.value = ''; f.click(); } } });
+document.addEventListener('change', e => {
+  if (e.target.id !== 'impf' || !e.target.files || !e.target.files[0]) return;
+  const file = e.target.files[0];
+  const done = m => { impMsg = m; palDirty = true; palRender(); const b = $('#impb'); if (b) b.focus(); };
+  if (file.size > 5e6) return done('That file is over 5 MB, too big for a quiz pack.');
+  file.text().then(t => done(importPack(t))).catch(err => done('Couldn’t import: ' + (err && err.safe ? err.message : esc(String(err && err.message || 'unknown error')))));
+});
 function themeChanged() {
   const f = document.activeElement, sel = f && f.dataset ? Object.entries(f.dataset).map(([k, v]) => `[data-${k}="${v}"]`).join('') : '';
   applyTheme(PREFS); savePrefs();
@@ -996,10 +1061,10 @@ function feedback() {
     if (k === q.a) { b.classList.add('right'); b.insertAdjacentHTML('beforeend', mark(r.sure === false && ok ? 'gs' : 'ok')); }
     else if (k === v) { b.classList.add('wrong'); b.insertAdjacentHTML('beforeend', mark('no')); } });
   else { $('#nin').value = v; $('#nin').disabled = true; const cb = c.querySelector('#nf .btn'); if (cb) cb.remove(); }
-  const sure = ok && study().sure ? `<div class="sure"><span>How sure were you?</span><span class="seg" role="group" aria-label="How sure were you?"><button data-s="1" aria-pressed="${r.sure === true}">Sure</button><button data-s="0" aria-pressed="${r.sure === false}">Guessed</button></span></div>` : '';
+  const sure = ok && study().sure ? `<div class="sure"><span>How sure were you?</span><span class="seg" role="group" aria-label="How sure were you?"><button data-s="1" aria-pressed="${r.sure === true}">Sure</button><button data-s="0.5" aria-pressed="${r.sure === 0.5}">Fairly sure</button><button data-s="0" aria-pressed="${r.sure === false}">Guessed</button></span></div>` : '';
   $('#fbw').innerHTML = `<div class="fb"><div class="verdict ${ok ? 'ok' : 'no'}">${ok ? 'Correct' : 'Not quite. The answer is ' + (q.o ? 'ABCD'[q.a] : `<span class="n">${esc(q.num)}</span>`)}</div><div>${H(q.e)}</div><div class="src">${H(q.s)}</div>${sure}${links(q, ok)}${askBtn(q.id)}</div>`;
   $('#fbw').querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
-    r.sure = b.dataset.s === '1'; Store.update('attempts/' + r.att, { sure: r.sure });
+    r.sure = b.dataset.s === '1' ? true : b.dataset.s === '0' ? false : 0.5; Store.update('attempts/' + r.att, { sure: r.sure });
     if (r.fresh) srsApply(q.id, true, r.sure, r.prev);
     persist();
     $('#mkw').innerHTML = mark(markKind(r, false));
@@ -1229,7 +1294,7 @@ function exReview(id, z, Q, sid, back) {
 
 function examsBody(u) {
   const xs = examsOf(u.key);
-  if (!xs.length) return `<p class="empty">No practice exams yet. Tap <b>New</b> above and pick <b>Practice exam</b>.</p>`;
+  if (!xs.length) return `<p class="empty">No practice exams yet. ${SOLO ? IMPORT_HINT : 'Tap <b>New</b> above and pick <b>Practice exam</b>.'}</p>`;
   return `<div class="list">${xs.map(([id, z]) => {
     const ss = sitsOf(id), live = ss.find(([, s]) => !s.done), done = ss.filter(([, s]) => s.done);
     const best = done.map(([, s]) => exScore(z, s)).sort((a, b) => b.got - a.got)[0];
@@ -1282,7 +1347,7 @@ function showHome() {
     <section class="hello"><p class="eyebrow">${esc(date)}</p><h1>${hi}.</h1></section>
     ${notices()}${hero}
     <section aria-labelledby="ut"><div class="sec-h"><h2 id="ut">Your units</h2><span class="muted">${us.length} ${us.length === 1 ? 'unit' : 'units'}</span></div>
-      ${us.length ? `<div class="units">${cards}</div>` : '<p class="empty">No units yet. Ask Claude to quiz you on a week and it will appear here.</p>'}</section>
+      ${us.length ? `<div class="units">${cards}</div>` : `<p class="empty">No units yet. ${SOLO ? IMPORT_HINT : 'Ask Claude to quiz you on a week and it will appear here.'}</p>`}</section>
   </main>`;
 }
 
@@ -1295,7 +1360,7 @@ function showUnit(key, tab) {
   const nDue = dueIds().filter(id => { const q = Store.all('questions')[id]; return q && unitKey(q.unit) === key; }).length;
   const cur = t => tab === t ? ' aria-current="page"' : '', nEx = examsOf(key).length, cc = contentCount(key);
   const cd = e ? (e.days > 0 ? `<div class="cd"><b>${e.days}</b><span>${e.days === 1 ? 'day' : 'days'} to ${e.test ? esc(e.label) : 'exam'}</span><small>${esc(e.when)}</small></div>` : `<div class="cd"><span>${esc(daysTxt(e, u))}</span><small>${esc(e.when)}</small></div>`) : `<div class="cd"><span>${u.noExam ? 'No exam' : 'No exam date yet'}</span></div>`;
-  const acts = `<div class="acts"><button class="btn" id="newb">${icon('plus')}New</button>${x.quizzes.length ? `<a class="btn out" href="#/s/weak/${K}">${icon('target')}Revise weak spots</a>` : ''}${nDue ? `<a class="btn out" href="#/s/due/${K}">${icon('clock')}Due <span class="badge">${nDue}</span></a>` : ''}</div>`;
+  const acts = `<div class="acts">${SOLO ? '' : `<button class="btn" id="newb">${icon('plus')}New</button>`}${x.quizzes.length ? `<a class="btn out" href="#/s/weak/${K}">${icon('target')}Revise weak spots</a>` : ''}${nDue ? `<a class="btn out" href="#/s/due/${K}">${icon('clock')}Due <span class="badge">${nDue}</span></a>` : ''}</div>`;
   const head = `<section class="uhead u" ${uAttr(key)}><p class="code">${esc(u.unit)}</p><h1>${esc(u.name || u.unit)}</h1>
     <div class="row">${cd}${acts}</div>
     <nav class="tabs" aria-label="${esc(u.unit)} sections">
@@ -1305,12 +1370,12 @@ function showUnit(key, tab) {
       <a href="#/u/${K}/exams"${cur('exams')}>${icon('exam')}Exams<span class="ct">${nEx}</span></a></nav></section>`;
   const body = tab === 'progress' ? progressBody(u, x, S) : tab === 'content' ? contentBody(u) : tab === 'exams' ? examsBody(u) : quizzesBody(u, x);
   app().innerHTML = topbar({ href: '#/', label: 'All units' }) + `<main class="wrap">${head}<div class="upage">${reqsBox(key)}${body}</div></main>`;
-  $('#newb').onclick = () => openNew(key); wireReqs();
+  if ($('#newb')) $('#newb').onclick = () => openNew(key); wireReqs();
   if (tab === 'progress') wireWeeks(key);
   if (tab === 'content') wireContent(key);
 }
 function quizzesBody(u, x) {
-  if (!x.quizzes.length) return `<p class="empty">No quizzes yet. Tap <b>New</b> above to make one from your notes.</p>`;
+  if (!x.quizzes.length) return `<p class="empty">No quizzes yet. ${SOLO ? IMPORT_HINT : 'Tap <b>New</b> above to make one from your notes.'}</p>`;
   return `<div class="list">${x.quizzes.sort((a, b) => a[1].created < b[1].created ? 1 : -1).map(([id, z]) => {
     const lat = latestIn(id), pr = Store.get('progress/' + id) || {}, sk = new Set(pr.skipped || []);
     const d = z.qids.filter(q => lat[q]), right = d.filter(q => lat[q].ok).length;
@@ -1379,7 +1444,7 @@ const cbar = (d, n) => `<span class="track" aria-hidden="true"><i style="width:$
 function contentBody(u) { return `<div id="cbody">${contentInner(u.key)}</div>`; }
 function contentInner(key) {
   const all = contentOf(key), tk = ticksOf(key);
-  if (!all.length) return '<p class="empty">No content list yet. Ask Claude to build one from your notes.</p>';
+  if (!all.length) return `<p class="empty">No content list yet.${SOLO ? '' : ' Ask Claude to build one from your notes.'}</p>`;
   const kinds = Object.keys(KINDS).filter(k => all.some(i => i.k === k)).concat([...new Set(all.map(i => i.k))].filter(k => !KINDS[k]));
   const sel = cFilt(key).filter(k => kinds.includes(k)), f = sel.length === 1 ? sel[0] : 'all';
   const it = sel.length ? all.filter(i => sel.includes(i.k)) : all, T = ctally(it, tk);
@@ -1428,7 +1493,10 @@ function wireContent(key) {
   box.addEventListener('click', e => {
     if (e.target.closest('.cfbtn')) return setMenu(!cMenuOpen);
     if (e.target.closest('[data-clear]')) { lsSet('hub:cfilt:' + key, '[]'); redraw('.cfbtn'); setMenu(false); }
-    const tv = e.target.closest('.tvid'); if (tv) { const l = tv.dataset.l, open = !cOpenL.has(l); open ? cOpenL.add(l) : cOpenL.delete(l);
+    // On a lesson with videos, the name opens the video list; only the box ticks.
+    let tv = e.target.closest('.tvid');
+    if (!tv && e.target.closest('.tt')) { tv = e.target.closest('.trow').querySelector('.tvid'); if (tv) e.preventDefault(); }
+    if (tv) { const l = tv.dataset.l, open = !cOpenL.has(l); open ? cOpenL.add(l) : cOpenL.delete(l);
       tv.setAttribute('aria-expanded', open); const s = tv.closest('.trow').nextElementSibling; if (s && s.classList.contains('tsub')) s.hidden = !open; }
   });
   box.addEventListener('keydown', e => { if (e.key === 'Escape' && cMenuOpen) { e.stopPropagation(); setMenu(false, true); } });
@@ -1741,7 +1809,7 @@ function saveGen(o, d) {
 
 // ----- "Ask Claude" about one question -----
 const ASK = {}; // qid -> { turns: [], busy, err, ctl }
-function askBtn(qid) { return SAMPLE === null || !study().ask ? '' : `<div class="askw" data-ask="${esc(qid)}"></div>`; }
+function askBtn(qid) { return SOLO || SAMPLE === null || !study().ask ? '' : `<div class="askw" data-ask="${esc(qid)}"></div>`; }
 function askCtx(q, ctx) {
   const u = unitList().find(x => x.key === unitKey(q.unit)) || {};
   const note = notesOf(unitKey(q.unit)).find(n => +n.week === wkNum(q.week));
@@ -1775,10 +1843,12 @@ function drawAsk(w, q, ctx) {
 }
 async function sendAsk(w, q, ctx, text) {
   const st = ASK[q.id]; if (st.busy) return;
-  const sample = SAMPLE === undefined ? await sampleReady : SAMPLE;
-  if (!sample) { st.err = 'Claude isn’t switched on for this page.'; return drawAsk(w, q, ctx); }
+  // Show the question and "Thinking" straight away: the Claude connection can take a few seconds to come up.
+  const ctl = st.ctl = new AbortController();
   st.turns.push({ role: 'user', content: text }); st.busy = true; st.err = ''; drawAsk(w, q, ctx);
-  const ctl = st.ctl = new AbortController(), turns = st.turns.slice(-12);
+  const sample = SAMPLE === undefined ? await sampleReady : SAMPLE;
+  if (!sample || ctl.signal.aborted) { st.turns.pop(); st.busy = false; st.ctl = null; st.err = sample ? '' : 'Claude isn’t switched on for this page.'; return drawAsk(w, q, ctx); }
+  const turns = st.turns.slice(-12);
   try {
     const { text: out } = await sample([{ role: 'user', content: askCtx(q, ctx) }].concat(turns), { cache: false, signal: ctl.signal,
       onText: ({ text: t }) => { const live = w.isConnected && w.querySelector('.live'); if (live) live.innerHTML = md(t); } });
@@ -1805,7 +1875,7 @@ const verGt = (a, b) => { const x = String(a).split('.').map(Number), y = String
 function notices() {
   const v = Store.get('prefs/app') || {}, out = [];
   if (v.latest && verGt(v.latest, HUB_VERSION)) out.push(`<div class="notice" role="status"><p><b>Study Hub ${esc(v.latest)} is out.</b> Ask Claude to “update my Study Hub”.${/^https:\/\/github\.com\//.test(v.url || '') ? ` <a href="${esc(v.url)}" target="_blank" rel="noopener">What’s new</a>` : ''}</p></div>`);
-  if (!(PREFS.tips && PREFS.tips.pin)) out.push(`<div class="notice"><p><b>Tip:</b> pin this page so it’s always in your Claude sidebar. Ask Claude to “pin my Study Hub”.</p><button class="btn out sm" id="pintip">Got it</button></div>`);
+  if (!SOLO && !(PREFS.tips && PREFS.tips.pin)) out.push(`<div class="notice"><p><b>Tip:</b> pin this page so it’s always in your Claude sidebar. Ask Claude to “pin my Study Hub”.</p><button class="btn out sm" id="pintip">Got it</button></div>`);
   return out.join('');
 }
 document.addEventListener('click', e => { if (e.target.closest('#pintip')) { PREFS.tips = Object.assign({}, PREFS.tips, { pin: 1 }); savePrefs(); const n = e.target.closest('.notice'); if (n) n.remove(); } });
