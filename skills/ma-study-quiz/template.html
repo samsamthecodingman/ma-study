@@ -407,6 +407,13 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .pal .uh h3 i { width: 10px; height: 10px; border-radius: 50%; }
 .pal .uh label { display: flex; align-items: center; gap: 6px; font-size: .875rem; color: var(--ink-2); cursor: pointer; min-height: 36px; }
 .pal .uh input { width: 16px; height: 16px; margin: 0; }
+/* each unit folds (like .wk): closed shows just the heading line */
+.pal .uf > summary { list-style: none; cursor: pointer; }
+.pal .uf > summary::-webkit-details-marker { display: none; }
+.pal .uf[open] > summary { margin-bottom: 4px; }
+.pal .uh .uhr { display: flex; align-items: center; gap: 10px; }
+.pal .uf .chev { width: 20px; height: 20px; color: var(--ink-3); transition: transform .2s ease-out; }
+.pal .uf[open] > summary .chev { transform: rotate(180deg); }
 .pal .hint { font-size: .8125rem; color: var(--ink-3); margin: 2px 0 6px; }
 /* settings tabs: a full-width .seg used as a tablist */
 .pal .stabs { display: flex; }
@@ -861,6 +868,8 @@ function wirePal() {
   P2.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { PREFS.preset = b.dataset.p; delete PREFS.unitHue; themeChanged(); });
   P2.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { PREFS.mode = b.dataset.m; themeChanged(); });
   P2.querySelectorAll('[data-u]').forEach(b => b.onclick = () => { PREFS.unitHue = Object.assign({}, PREFS.unitHue, { [b.dataset.u]: +b.dataset.h }); themeChanged(); });
+  P2.querySelectorAll('[data-uf]').forEach(d => d.ontoggle = () => {
+    const s = new Set(datesOpen()); d.open ? s.add(d.dataset.uf) : s.delete(d.dataset.uf); ssSet('hub:dopen', JSON.stringify([...s])); });
   if ($('#hreset')) $('#hreset').onclick = () => { delete PREFS.unitHue; themeChanged(); };
   P2.querySelectorAll('[data-st]').forEach(b => b.onclick = () => {
     const k = b.dataset.st, v = b.dataset.v;
@@ -913,16 +922,19 @@ function studyPanel() {
     <p class="hint">${o.due === 'ahead' ? 'Week 3 is due the Sunday before week 3 starts.' : o.due === 'day' ? `Week 3 is due on the ${DAYS[+o.dueDay || 0]} of week 2.` : o.due === 'custom' ? `Week 3 is due ${Math.abs(+o.dueOff || 0)} day${Math.abs(+o.dueOff || 0) === 1 ? '' : 's'} ${+o.dueOff < 0 ? 'before' : 'after'} week 3 starts (its Monday).` : 'Week 3 is due by the end of week 3.'} Teaching weeks and one-off due dates are in Dates.</p></div>`;
 }
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+// Dates tab: each unit is a fold, closed until opened; open ones are remembered for the session.
+const datesOpen = () => { try { return JSON.parse(ssGet('hub:dopen') || '[]'); } catch (e) { return []; } };
 function examPanel(us) {
   if (!us.length) return '<div><h3>Exams and tests</h3><p class="hint">No units yet.</p></div>';
   const dv = v => esc(String(v || '').slice(0, 16));
+  const open = datesOpen();
   return us.map(u => { const k = esc(u.key), n = esc(u.unit);
-    return `<div><div class="uh"><h3><i style="background:${dot(unitHue(u.key))}" aria-hidden="true"></i>${n}</h3>
-        <label><input type="checkbox" data-nx="${k}"${u.noExam ? ' checked' : ''}>No exam</label></div>
+    return `<details class="uf" data-uf="${k}"${open.includes(u.key) ? ' open' : ''}><summary class="uh"><h3><i style="background:${dot(unitHue(u.key))}" aria-hidden="true"></i>${n}</h3>
+        <span class="uhr"><label><input type="checkbox" data-nx="${k}"${u.noExam ? ' checked' : ''}>No exam</label><svg class="ic chev" aria-hidden="true"><use href="#i-down"/></svg></span></summary>
       ${u.noExam ? '' : `<div class="srow"><span>Final exam</span><input type="datetime-local" class="edate" data-ed="${k}" aria-label="${n} exam date" value="${dv(u.examDate)}"></div>`}
       ${(u.tests || []).map((t, i) => `<div class="srow"><span>Mid-sem ${i + 1}</span><span class="sctl"><input type="datetime-local" class="edate" data-td="${k}" data-i="${i}" aria-label="${n} mid-sem ${i + 1} date" value="${dv(t && t.date)}"><button class="x" data-tx="${k}" data-i="${i}" aria-label="Remove ${n} mid-sem ${i + 1}">${icon('x')}</button></span></div>`).join('')}
       ${weeksRows(u)}
-      <div class="sbtns"><button class="btn out sm" data-ta="${k}">${icon('plus')}Add mid-sem test</button><button class="btn out sm" data-da="${k}">${icon('plus')}Add due date</button></div></div>`; }).join('')
+      <div class="sbtns"><button class="btn out sm" data-ta="${k}">${icon('plus')}Add mid-sem test</button><button class="btn out sm" data-da="${k}">${icon('plus')}Add due date</button></div></details>`; }).join('')
     + '<p class="hint">Each unit counts down to its next test or exam. Teaching weeks come from your notes when Claude has them; otherwise set week 1 and the break here. A due date you add wins over the rule in Study.</p>';
 }
 // Teaching weeks for one unit: when week 1 starts, the mid-sem break, a manual "this week", and one-off due dates.
