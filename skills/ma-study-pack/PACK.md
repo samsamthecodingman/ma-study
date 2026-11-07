@@ -10,10 +10,12 @@ A pack is one JSON file that the Study Hub imports (New, then Import on a unit p
   "questions": { "<id>": { ... } },
   "quizzes":   { "<id>": { ... } },
   "exams":     { "<id>": { ... } },
-  "meta":      { "<unit lowercase>": { ... } } }
+  "meta":      { "<unit lowercase>": { ... } },
+  "formulas":  { "<id>": { ... } },
+  "terms":     { "<id>": { ... } } }
 ```
 
-`format` and `version` are required. Every collection is optional, but those five are the only ones allowed.
+`format` and `version` are required. Every collection is optional, but those seven are the only ones allowed.
 
 ## Items
 
@@ -26,7 +28,7 @@ Every item needs a non-empty `"unit"` string of at most 40 characters, like `"EC
 - Numeric: `num` (a finite number) and optionally `tol` (a number of 0 or more, the allowed error).
 - Written: `ans` (non-empty model answer HTML). Written questions only appear in exams, not in quizzes or weak-spot revision.
 
-Optional on any question: `e` (explanation), `s` (source, like `"slide · Transformers p.14"`), `link`.
+Optional on any question: `e` (explanation), `s` (source, like `"slide · Transformers p.14"`), `link`. Multiple choice can also have `why`: one string per option saying why that option is wrong, with `null` at the right answer's index. A student who picks a wrong option sees its reason above the explanation.
 
 **link** (optional): `{ "v": { "id": "<Panopto video uuid>", "t": <seconds>, "title": "..." }, "d": { "deck": "<deck name>", "f": "<Google Drive file id>", "p": [6] } }`. Either part can be left out. Video links only show for Monash Panopto ids and Drive links only for Drive file ids. Do not invent ids.
 
@@ -35,6 +37,10 @@ Optional on any question: `e` (explanation), `s` (source, like `"slide · Transf
 **exam**: `unit`, `title`, `qids` (as for a quiz), optional `minutes` (above 0), `marks` (object of question id to marks, default 1 each), `intro` (HTML).
 
 **meta**: keyed by the unit in lowercase. `unit`, `name` (the unit title), `examDate` (like `"2026-11-12T10:30"`), optional `weeks` (teaching week number to the Monday it starts, like `{"1": "2026-07-27", "9": "2026-09-28"}`; leave break weeks out).
+
+**formula** (the unit's formula sheet, shown by the Formulas button in quizzes and the Formula sheet button in practice exams): `unit`, `week` (number), `name` (non-empty, up to 200 characters, like `"Softmax"`), `tex` (LaTeX without `\[ \]`, up to 2000 characters), `concepts` (array of concept ids it helps with; a question shows the formulas sharing one of its concepts, or its week's if none do), optional `order` (number, sorting in the week) and `extra: true` for a formula that isn't on the official sheet (shown in quizzes with a "Not on the sheet" tag, left out of the exam sheet). Use ids like `ece4179-f-softmax`. Export includes the whole sheet of each unit it exports.
+
+**term** (a key term, underlined in question text when hints are on; tapping it shows the plain-words definition and a slide link, and counts as a hint): `unit`, `week`, `term` (the name as the slides use it, like `"beam search"`), `def` (the exact, textbook definition) and `simple` (the same idea in plain words, one or two sentences); at least one of the two is required. Optional: `aka` (other names or spellings to match, like `["beam decoding"]`), `concepts`, and `link` with only a `d` part (the slide page). Text is HTML, so write `<` as `&lt;`; LaTeX goes in `\( … \)`. Matching is whole-word and case-insensitive. Use ids like `ece4179-t-beam-search`. Export includes all of a unit's terms.
 
 ## Rules the importer checks
 
@@ -103,4 +109,4 @@ Optional on any question: `e` (explanation), `s` (source, like `"slide · Transf
 
 (The written question is not in the quiz, since written questions are exam-only. Put it in an `exams` item to use it.)
 
-Check a pack with `node check-pack.js your-pack.json`.
+Check a pack with `node check-pack.cjs your-pack.json`.

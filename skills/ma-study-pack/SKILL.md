@@ -32,7 +32,7 @@ Turns the notes from **ma-study-notes** into a quiz pack: one `.json` file the s
 ## 5. Write and check the pack
 - Write a small Node or Python script that builds the objects and saves the pack to `<study folder>/<UNIT>/packs/<unit>-<name>.json`, for example `ece4179-w11-12.json`. Make the folder if needed.
 - Include a quiz that lists the new questions (id like `ece4179-w11-12`), and a `meta` entry if this is the unit's first pack (unit name and exam date from the notes README).
-- Run the checker: `node <this skill's folder>/check-pack.js <pack file>`. Fix every error. Look at each warning and fix it unless it is deliberate.
+- Run the checker: `node <this skill's folder>/check-pack.cjs <pack file>`. Fix every error. Look at each warning and fix it unless it is deliberate.
 - Re-importing a pack with the same ids updates those items, so keep ids stable when you fix or extend a pack.
 
 ## 6. Tell the student

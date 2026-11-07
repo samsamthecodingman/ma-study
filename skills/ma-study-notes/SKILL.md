@@ -72,7 +72,11 @@ The rules below apply whether you build the weeks yourself or through agents. Ea
 ### Per-week file: `week-NN-<slug>.md`
 1. Title, dates, Moodle URL, one-paragraph overview (state any surprises, e.g. "Lesson 1 and 2 link the same PDF", "WGAN not examinable per Ed ####").
 2. **Resources** table: name | type | Drive ID / URL | read? (and why not).
-3. **Core concepts:** exam-focused and faithful to the slides, in the lecturer's notation. Slide equations are usually images, so fill them from worksheets/notes and mark anything beyond the slides **(extra)**.
+3. **Core concepts:** exam-focused and faithful to the slides, in the lecturer's notation. Slide equations are usually images, so fill them from worksheets/notes.
+   - **Source tags.** End every bullet with where it came from: `[lecture]` (this week's lecture slides or video), `[studio]`, `[worksheet]`, `[workshop]`, `[Ed]`, `[reading]` or `[extra]` (not in any course material). Split a bullet that mixes sources. If the idea is taught in another week's lectures, add `· lectured WN`, e.g. `[studio · lectured W12]`.
+   - Put one tag on each non-lecture section heading (`## Studio 11 solution methods [studio]`); a bullet's own tag overrides it. Tag the likely exam questions the same way.
+   - Add one key line under the overview: `Source tags: [lecture] lecture slides/video · [studio] studio · [worksheet] worksheet · [workshop] workshop · [Ed] Ed staff · [reading] reading · [extra] not in course material · "lectured WN" = taught in week N's lectures.`
+   - The Study Hub's "After lecture" quizzes read only `[lecture]` lines, so tag carefully.
 4. **Worksheet / studio / workshop:** question types and solution methods. If no solution was readable, mark the agent's own working as (extra).
 5. **Ed clarifications:** bullets with thread ids, especially "examinable or not" rulings.
 6. **Likely exam questions:** 5–10, each with a short answer.

@@ -1,17 +1,56 @@
 <meta charset="utf-8">
-<title>Study Hub</title>
+<title>Study Sauce</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link id="fontlink" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400..800&family=Manrope:wght@400..800&display=swap">
 <script>
-window.MathJax = {
-  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
-  svg: { fontCache: 'global' },
-  startup: { typeset: false }
+/* MathJax 4.1.3 (line-breaks wide maths). The a11y extras are off: they load workers and extra files.
+   If 4 fails to load, start, or leaves raw TeX, mjFallback swaps in 3.2.2 and re-typesets the page. */
+const MJ_BASE = () => ({ tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] }, svg: { fontCache: 'global' }, startup: { typeset: false } });
+window.MathJax = Object.assign(MJ_BASE(), {
+  output: { displayOverflow: 'linebreak', linebreaks: { inline: true, width: '100%' } },
+  options: { enableEnrichment: false, enableSpeech: false, enableBraille: false, enableExplorer: false, enableMenu: false }
+});
+// Early log for the health record: blocked requests (CSP) and script errors, last 8.
+window.mjLog = [];
+const mjNote = m => { mjLog.push(String(m).slice(0, 240)); if (mjLog.length > 8) mjLog.shift(); };
+document.addEventListener('securitypolicyviolation', e => mjNote('csp ' + e.violatedDirective + ' ' + e.blockedURI));
+window.addEventListener('error', e => mjNote('err ' + (e.message || (e.target && (e.target.src || e.target.href)) || '?')), true);
+window.addEventListener('unhandledrejection', e => mjNote('rej ' + ((e.reason && (e.reason.message || e.reason)) || '?')));
+window.mjFallback = why => {
+  if (!window.mjV3) { const M = window.MathJax || {}; mjNote('state v=' + M.version + ' startup=' + !!M.startup + ' promise=' + !!(M.startup && M.startup.promise) + ' typeset=' + !!M.typesetPromise + ' ready=' + document.readyState); }
+  if (window.mjV3) return; window.mjV3 = 1; window.mjWhy = String(why).slice(0, 200);
+  console.warn('MathJax 4 failed (' + why + '); using 3.2.2');
+  document.documentElement.classList.add('mj3');
+  window.MathJax = MJ_BASE();
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js';
+  s.integrity = 'sha384-KKWa9jJ1MZvssLeOoXG6FiOAZfAgmzsIIfw8BXwI9+kYm0lPCbC6yTQPBC00F1/L'; s.crossOrigin = 'anonymous';
+  s.onload = () => MathJax.startup.promise.then(() => window.dispatchEvent(new Event('mj-ready')));
+  document.head.appendChild(s);
 };
 </script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" integrity="sha384-KKWa9jJ1MZvssLeOoXG6FiOAZfAgmzsIIfw8BXwI9+kYm0lPCbC6yTQPBC00F1/L" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@4.1.3/tex-svg.js" integrity="sha384-my9P1jDckpHD+5LZsLQ0gaiCl/RMO32HaqwBtbo/25QIMVr6xXIUCg1jvdSRcvb4" crossorigin="anonymous" onload="mjNote('v4 loaded ' + Math.round(performance.now()) + 'ms')" onerror="mjFallback('load')"></script>
+<script>
+/* Probe: one small formula must come out as SVG within 8s, or fall back. */
+(() => {
+  const t = setTimeout(() => mjFallback('timeout'), 8000);
+  const go = () => {
+    if (window.mjV3) return clearTimeout(t);
+    if (!window.MathJax || !MathJax.startup || !MathJax.startup.promise) return clearTimeout(t), mjFallback('missing');
+    const ce = console.error.bind(console); console.error = (...a) => { mjNote('console ' + a.map(x => (x && x.message) || x).join(' ')); ce(...a); };
+    MathJax.startup.promise.then(() => {
+      mjNote('startup ' + Math.round(performance.now()) + 'ms');
+      const d = document.createElement('div'); d.style.cssText = 'position:absolute;left:-9999px;top:0'; d.textContent = '\\(\\mathrm{PE}_{(pos,2i)}=\\sin\\left(\\frac{pos}{10000^{2i/d}}\\right)\\)';
+      document.body.appendChild(d);
+      MathJax.typeset([d]); // synchronous: typesetPromise never settles on claude.ai
+      return Promise.resolve().then(() => { const ok = d.querySelector('mjx-container svg'); d.remove(); clearTimeout(t); mjNote('probe ' + (ok ? 'ok ' : 'no svg ') + Math.round(performance.now()) + 'ms'); if (!ok) mjFallback('probe'); });
+    }).catch(e => { clearTimeout(t); mjFallback(e && e.message); });
+  };
+  document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', go) : go();
+})();
+</script>
 <script>
 /* Themes: each preset is a colour family plus a type pairing. Every colour is derived in CSS from a few hues,
    so a preset is just numbers. Applied before first paint from localStorage; the db copy syncs devices. */
@@ -37,7 +76,8 @@ window.applyTheme = function (p) {
   s.setProperty('--display', `"${P.display}", ui-sans-serif, system-ui, sans-serif`);
   s.setProperty('--body', `"${P.body}", ui-sans-serif, system-ui, sans-serif`);
   r.dataset.preset = P.id;
-  if (p.mode === 'light' || p.mode === 'dark') r.dataset.theme = p.mode; else delete r.dataset.theme;
+  // data-mode is the student's pick; claude.ai sets data-theme itself, so Auto follows that and a pick overrides it.
+  if (p.mode === 'light' || p.mode === 'dark') r.dataset.mode = p.mode; else delete r.dataset.mode;
   const l = document.getElementById('fontlink'), href = `https://fonts.googleapis.com/css2?${P.fonts}&display=swap`;
   if (l && l.getAttribute('href') !== href) l.setAttribute('href', href);
 };
@@ -57,7 +97,7 @@ try { applyTheme(JSON.parse(localStorage.getItem('hub:prefs') || 'null')); } cat
   --r: 14px; --r-sm: 9px; --shadow: 0 1px 2px oklch(20% .03 var(--hb) / .06), 0 8px 24px -12px oklch(20% .05 var(--hb) / .18);
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]):not([data-mode="light"]) {
   --bg: oklch(16.5% calc(var(--cb) * .9) var(--hb)); --surface: oklch(20.5% calc(var(--cb) * .9) var(--hb)); --sunk: oklch(14% calc(var(--cb) * .8) var(--hb));
   --ink: oklch(95% .01 var(--ha)); --ink-2: oklch(79% .02 var(--ha)); --ink-3: oklch(67% .02 var(--ha));
   --line: oklch(29% .02 var(--hb)); --line-2: oklch(39% .025 var(--hb));
@@ -67,7 +107,7 @@ try { applyTheme(JSON.parse(localStorage.getItem('hub:prefs') || 'null')); } cat
   --untried: oklch(36% .015 var(--hb));
   --shadow: 0 1px 2px #0004, 0 10px 28px -14px #000a;
   color-scheme: dark } }
-:root[data-theme="dark"] {
+:root[data-theme="dark"]:not([data-mode="light"]), :root[data-mode="dark"] {
   --bg: oklch(16.5% calc(var(--cb) * .9) var(--hb)); --surface: oklch(20.5% calc(var(--cb) * .9) var(--hb)); --sunk: oklch(14% calc(var(--cb) * .8) var(--hb));
   --ink: oklch(95% .01 var(--ha)); --ink-2: oklch(79% .02 var(--ha)); --ink-3: oklch(67% .02 var(--ha));
   --line: oklch(29% .02 var(--hb)); --line-2: oklch(39% .025 var(--hb));
@@ -82,7 +122,8 @@ try { applyTheme(JSON.parse(localStorage.getItem('hub:prefs') || 'null')); } cat
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; } /* short and long pages keep the same width, so tabs don't jump */
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; accent-color: var(--acc); }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; accent-color: var(--acc); font-variant-ligatures: no-common-ligatures; } /* Manrope's standard ligatures draw "(c)" as © */
+input, textarea, select, button { font-variant-ligatures: inherit; }
 ::selection { background: var(--acc-soft); color: var(--ink); }
 a { color: var(--acc-ink); text-underline-offset: .2em; text-decoration-thickness: 1px; }
 :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
@@ -205,9 +246,11 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .qrow.pick:has(input:checked) { border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-soft); }
 .qrow.pick > input { width: 18px; height: 18px; margin: 0; accent-color: var(--acc); }
 .qlist { display: flex; flex-direction: column; gap: 12px; }
-.lbar > .cfilt:first-child .cmenu { left: 0; right: auto; }
+/* Sort and Filter menus hang from the bar's left edge, so the second one still fits a phone screen. */
+.lbar > .cfilt:not(:last-child) { position: static; }
+.lbar > .cfilt:not(:last-child) .cmenu { left: 0; right: auto; }
 .btn.bad, .btn.bad:hover { background: var(--bad); border-color: var(--bad); color: var(--surface); }
-.lbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 36px; }
+.lbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 36px; position: relative; }
 .lbar .sp { flex: 1; }
 .lbar .seg button { padding: 0 10px; }
 .lbar.sel { position: sticky; top: 8px; z-index: 15; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 8px 8px 8px 16px; }
@@ -232,7 +275,7 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .cells.big .cell.has span { visibility: hidden; }
 .cells.big .cell.cur { border: 2px solid var(--acc); color: var(--acc-ink); box-shadow: 0 0 0 3px var(--acc-soft); }
 .mk { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
-.mk.ok { stroke: var(--good); } .mk.gs { stroke: var(--shaky); } .mk.no { stroke: var(--bad); } .mk.sk { stroke: var(--ink-3); stroke-width: 2.2; }
+.mk.ok { stroke: var(--good); } .mk.gs, .mk.ht { stroke: var(--shaky); } .mk.no { stroke: var(--bad); } .mk.sk { stroke: var(--ink-3); stroke-width: 2.2; }
 @media (prefers-reduced-motion: no-preference) {
   .mk.draw path { stroke-dasharray: 40; stroke-dashoffset: 40; animation: ink .32s cubic-bezier(.2,.8,.2,1) forwards; }
   .mk.draw path + path { animation-delay: .12s; }
@@ -273,6 +316,12 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .copt input { width: 18px; height: 18px; margin: 0; accent-color: var(--acc); cursor: pointer; }
 .copt .n { font-size: .8125rem; color: var(--ink-3); }
 .cmenu-f { border-top: 1px solid var(--line); margin-top: 6px; padding: 6px 4px 2px; display: flex; justify-content: flex-end; }
+/* Group names in a list menu: the .copt .n meta size and colour, bolder; no uppercase kicker. */
+.lbar .cmenu h3 { font-family: var(--body); font-size: .8125rem; color: var(--ink-3); font-weight: 700; margin: 0; padding: 10px 10px 4px; }
+.lbar .cmenu h3 ~ h3 { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 12px; }
+/* Fixed-width buttons: an empty badge keeps its slot; .stk stacks every label in one cell so the widest sets the width. */
+.badge.off { visibility: hidden; }
+.stk { display: inline-grid; } .stk > span { grid-area: 1 / 1; } .stk > .off { visibility: hidden; }
 .cw .avg { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
 .cw .avg small { font-size: .8125rem; font-weight: 600; color: var(--ink-3); white-space: nowrap; }
 .trow { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-auto-flow: column; align-items: center; gap: 10px; padding: 12px 18px; transition: background-color .15s ease-out; position: relative; }
@@ -343,11 +392,11 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .sheet #mkw { margin-left: auto; display: flex; }
 .sheet #mkw .mk { width: 34px; height: 34px; }
 .body { padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.q { font-size: 1.125rem; font-weight: 600; overflow-x: auto; }
+.q { font-size: 1.125rem; font-weight: 600; overflow-wrap: anywhere; }
 .state { font-size: .875rem; color: var(--ink-2); margin-top: -8px; }
 .opts { display: flex; flex-direction: column; gap: 8px; }
 .opt { display: flex; gap: 12px; align-items: flex-start; text-align: left; width: 100%; font: inherit; color: var(--ink); background: var(--surface);
-  border: 1.5px solid var(--line); border-radius: var(--r); padding: 12px 14px; cursor: pointer; overflow-x: auto; transition: border-color .15s ease-out, background-color .15s ease-out; }
+  border: 1.5px solid var(--line); border-radius: var(--r); padding: 12px 14px; cursor: pointer; overflow-wrap: anywhere; transition: border-color .15s ease-out, background-color .15s ease-out; }
 .opt:hover:not(:disabled) { border-color: var(--acc); background: var(--acc-soft); }
 .opt .k { display: grid; place-items: center; flex: none; width: 26px; height: 26px; border-radius: 8px; background: var(--sunk); font-weight: 800; font-size: .8125rem; color: var(--ink-2); }
 .opt > span:not(.k) { flex: 1; min-width: 0; padding-top: 1px; }
@@ -356,11 +405,55 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .opt.right { border-color: var(--good); background: var(--good-soft); color: var(--ink); }
 .opt.wrong { border-color: var(--bad); background: var(--bad-soft); color: var(--ink); }
 .opt.right .k { background: var(--good); color: var(--surface); } .opt.wrong .k { background: var(--bad); color: var(--surface); }
+/* Why a picked wrong option is wrong: inside that option, to the right of its text (under it on narrow cards). */
+.opt .owhy { flex: 1; min-width: 0; font-size: .875rem; color: var(--ink-2); border-left: 1px solid var(--line-2); padding-left: 12px; }
+.opt .owhy b { color: var(--bad); font-weight: 700; }
+@media (max-width: 699px) { .opt:has(.owhy) { flex-wrap: wrap; } .opt > span.owhy { order: 1; flex: 1 1 100%; border-left: 0; border-top: 1px dashed var(--line-2); padding: 8px 0 0; margin-left: 38px; } }
 .numf { display: flex; gap: 8px; flex-wrap: wrap; }
 .numf input { font: 600 1rem var(--body); padding: 0 14px; min-height: 44px; width: 11em; border: 1.5px solid var(--line-2); border-radius: var(--r); background: var(--surface); color: var(--ink); }
 .numf input:disabled { color: var(--ink); background: var(--sunk); }
 .numf input::placeholder { color: var(--ink-3); font-weight: 400; }
-.fb { border-top: 1px dashed var(--line-2); padding-top: 16px; display: flex; flex-direction: column; gap: 10px; overflow-x: auto; }
+.fb { border-top: 1px dashed var(--line-2); padding-top: 16px; display: flex; flex-direction: column; gap: 10px; overflow-wrap: anywhere; }
+/* Formula panel (.cmenu.fsp): the question's formulas in quizzes, the whole sheet in practice exams. It grows to fit and the page scrolls; no scroll bar of its own.
+   From 1100px it sits beside the paper: a page with a formula button (.qpage.fsroom) keeps a 376px column free on the right from the start, staying centred when the margin is already wide enough, so opening it moves nothing. Narrower, it opens in the flow below the button that opened it (quiz: under Back/Formulas/Flag; exam: under the question card, with the sticky exam bar keeping the button in reach), so the button and everything above it stay put. */
+#card, .qpage { position: relative; }
+#flagw:empty { display: none; }
+.cmenu.fsp { position: static; z-index: auto; width: auto; min-width: 0; max-width: none; padding: 0; display: flex; flex-direction: column; border-color: var(--line-2); box-shadow: none; }
+.cmenu.fsp[hidden] { display: none; }
+.fsp .pal-h { padding: 8px 8px 8px 16px; border-bottom: 1px solid var(--line); gap: 8px; }
+.fsp .pal-h p { margin: 0; font-size: .875rem; font-weight: 600; color: var(--ink-2); }
+.fsp-b { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+@media (min-width: 1100px) {
+  .qpage.fsroom { --qw: min(792px, calc(100% - 392px)); width: var(--qw); max-width: none; margin-right: 0; margin-left: max(0px, min(calc((100% - var(--qw)) / 2), calc(100% - var(--qw) - 392px))); }
+  .fsroom .cmenu.fsp { position: absolute; top: 0; left: calc(100% + 32px); width: 360px; box-shadow: var(--shadow); } .fsroom.qpage > .cmenu.fsp { left: calc(100% + 16px); } }
+@media (prefers-reduced-motion: no-preference) { .fsp:not([hidden]) { animation: tpop .16s cubic-bezier(.2,.8,.2,1); } }
+.fsr { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fsr > span { font-size: .875rem; color: var(--ink-2); }
+.fsr mjx-container[display="true"] { margin: 4px 0 !important; text-align: left !important; }
+/* MathJax 4 line-breaks wide maths. Only the 3.2.2 fallback (no line breaking) shrinks it to fit; never a scroll bar. */
+mjx-container { max-width: 100%; } .mj3 mjx-container > svg { max-width: 100%; height: auto; }
+.fsl { display: flex; flex-direction: column; gap: 10px; }
+.fsl h3 { margin-top: 8px; font-size: 1rem; }
+.fsl h3:first-child { margin-top: 0; }
+/* exam sheet: the rest of the sheet in week folds, a flat .wk inside the panel */
+.fsks { border-top: 1px solid var(--line); }
+.wk.fsk { background: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+.wk.fsk + .wk.fsk { border-top: 1px solid var(--line); }
+.wk.fsk summary { grid-template-columns: minmax(0, 1fr) 20px; gap: 12px; padding: 12px 16px; }
+.wk.fsk[open] summary { border-bottom: 0; }
+.wk.fsk > .fsp-b { padding-top: 0; }
+/* Key terms: a dotted underline in running text; tap for the definition in a bubble (.cmenu.tpop) pointing at the word. */
+.term { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: help; text-decoration: underline dotted var(--ink-3); text-decoration-thickness: 1.5px; text-underline-offset: 3px; border-radius: 2px; }
+.term:hover, .term[aria-expanded="true"] { text-decoration-color: var(--acc); text-decoration-style: solid; }
+.cmenu.tpop { right: auto; border-color: var(--line-2); width: min(360px, calc(100vw - 32px)); min-width: 0; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; z-index: 40; }
+.tpop::before { content: ""; position: absolute; left: var(--ax, 50%); top: -6px; width: 10px; height: 10px; margin-left: -6px; background: var(--surface); border-left: 1px solid var(--line-2); border-top: 1px solid var(--line-2); transform: rotate(45deg); }
+.tpop.up::before { top: auto; bottom: -6px; transform: rotate(225deg); }
+.tpop > p { margin: 0; font-size: .875rem; font-weight: 600; color: var(--ink-2); }
+.tpop .fsr > div { font-size: .875rem; }
+.tpop .taught { font-size: .875rem; }
+@media (prefers-reduced-motion: no-preference) { .tpop { animation: tpop .14s cubic-bezier(.2,.8,.2,1); } @keyframes tpop { from { opacity: 0; transform: translateY(-3px); } } }
+.tml { font-size: .875rem; color: var(--ink-2); }
+.tml .term { color: var(--ink); }
 .verdict { font-family: var(--display); font-weight: 800; font-size: 1.25rem; }
 [data-preset="matcha"] .verdict { font-weight: 400; font-size: 1.45rem; }
 .verdict.ok { color: var(--good); } .verdict.no { color: var(--bad); }
@@ -376,6 +469,11 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .taught a { display: inline-flex; align-items: center; gap: 8px; width: fit-content; font-weight: 600; }
 .qnav { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; border-top: 1px dashed var(--line-2); padding-top: 16px; }
 .qnav span { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Formulas and Hint above the question (the .qnav span row, small buttons). Their panels open in the flow just under it. */
+.qtools { display: flex; gap: 8px; flex-wrap: wrap; }
+.hintp .fsp-b { font-size: .875rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.hintp .fsp-b p { margin: 0; }
+@media (min-width: 1100px) { .fsroom .cmenu.fsp.hintp { position: static; width: auto; box-shadow: none; } }
 .notice { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); font-size: .9375rem; }
 .notice p { margin: 0; flex: 1; min-width: 200px; }
 .rep-kind { margin: 4px 0 12px; }
@@ -391,7 +489,7 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .result { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .result .big { font-family: var(--display); font-weight: 800; font-size: 3rem; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
 .sum { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
-.sum li { padding: 10px 0; border-top: 1px solid var(--line); overflow-x: auto; }
+.sum li { padding: 10px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
 .sum .jump { font-weight: 700; }
 .sum .taught { margin-top: 6px; font-size: .875rem; }
 .box { display: flex; flex-direction: column; gap: 10px; }
@@ -476,7 +574,7 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .opt.picked .k { background: var(--acc); color: var(--on-acc); }
 .wr textarea { font: inherit; padding: 12px 14px; border: 1.5px solid var(--line-2); border-radius: var(--r); background: var(--surface); color: var(--ink); min-height: 140px; width: 100%; resize: vertical; }
 .wr textarea:disabled { background: var(--sunk); }
-.model { border-left: 3px solid var(--good); padding: 4px 0 4px 14px; overflow-x: auto; }
+.model { border-left: 3px solid var(--good); padding: 4px 0 4px 14px; overflow-wrap: anywhere; }
 .model > p:first-child { margin: 0 0 4px; font-weight: 700; color: var(--good); font-size: .875rem; }
 .rev-q { border-top: 1px solid var(--line); }
 .rev-q summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 14px 0; cursor: pointer; }
@@ -484,7 +582,7 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .rev-q summary b { font-family: var(--display); font-size: 1.125rem; }
 .rev-q .chev { transition: transform .2s ease-out; color: var(--ink-3); }
 .rev-q[open] .chev { transform: rotate(180deg); }
-.rev-q .rb { display: flex; flex-direction: column; gap: 10px; padding-bottom: 18px; overflow-x: auto; }
+.rev-q .rb { display: flex; flex-direction: column; gap: 10px; padding-bottom: 18px; overflow-wrap: anywhere; }
 .rev-q .pts { margin-left: auto; font-weight: 800; font-variant-numeric: tabular-nums; }
 .rev-q .pts.ok { color: var(--good); } .rev-q .pts.no { color: var(--bad); } .rev-q .pts.part { color: var(--shaky); }
 .yours { font-size: .9375rem; color: var(--ink-2); }
@@ -540,7 +638,7 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 .iconb:hover { background: var(--sunk); color: var(--ink); }
 .askw { margin-top: 4px; }
 .ask { display: flex; flex-direction: column; gap: 10px; border-top: 1px dashed var(--line-2); padding-top: 14px; }
-.msg { padding: 10px 14px; border-radius: 16px; max-width: 92%; overflow-x: auto; }
+.msg { padding: 10px 14px; border-radius: 16px; max-width: 92%; overflow-wrap: anywhere; }
 .msg p { margin: 0 0 8px; } .msg p:last-child { margin: 0; }
 .msg.me { align-self: flex-end; background: var(--acc-soft); color: var(--acc-ink); border-bottom-right-radius: 6px; font-weight: 600; }
 .msg.cl { align-self: flex-start; background: var(--sunk); border-bottom-left-radius: 6px; }
@@ -558,11 +656,13 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
   <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
   <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></symbol>
+  <symbol id="i-sigma" viewBox="0 0 24 24"><path d="M18 5H6l6 7-6 7h12"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5z"/></symbol>
   <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6"/></symbol>
   <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
   <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+  <symbol id="i-sort" viewBox="0 0 24 24"><path d="M8 20V4M4 8l4-4 4 4M16 4v16M12 16l4 4 4-4"/></symbol>
   <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
   <symbol id="i-bars" viewBox="0 0 24 24"><path d="M5 20V12M10 20V5M15 20v-9M20 20V8"/></symbol>
   <symbol id="i-exam" viewBox="0 0 24 24"><path d="M7 3h10v18H7zM10 8h4M10 12h4M10 16h2"/><path d="M4 7v12M20 7v12"/></symbol>
@@ -585,7 +685,7 @@ h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; font-family: var(
 // Backend: claude db when available, else localStorage ("hub:" prefix). All collections load once into memory; writes go through.
 window.HUB_SEED = window.HUB_SEED || null; // tests may set this before the script runs
 const SEED = {};
-const CONTENT = ['concepts', 'questions', 'quizzes', 'meta', 'exams', 'notes', 'content'];
+const CONTENT = ['concepts', 'questions', 'quizzes', 'meta', 'exams', 'notes', 'content', 'formulas', 'terms'];
 const USER = ['attempts', 'srs', 'flags', 'progress', 'prefs', 'sittings', 'requests', 'reports', 'ticks'];
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -641,7 +741,26 @@ const Store = {
 };
 
 // ---------- helpers ----------
-const typeset = el => (window.MathJax && MathJax.typesetPromise) ? MathJax.typesetPromise([el]).catch(() => {}) : null;
+// MathJax typesets must run one at a time and only after it has loaded, so every call joins one queue.
+// A failure or raw TeX left behind switches to the 3.2.2 fallback (head), which re-typesets the whole page on 'mj-ready'.
+let mjQ = Promise.resolve();
+const rawTex = el => { const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); for (let n; (n = w.nextNode());) if (/\\[([]/.test(n.data) && !n.parentElement.closest('mjx-container,script,style,textarea')) return true; return false; };
+// On claude.ai, MathJax 4's typesetPromise never settles, but its synchronous typeset works. Use that on 4.x;
+// when a formula needs a file loaded first, MathJax throws an error carrying a .retry promise: wait, then try again.
+const mjRun = el => {
+  if (!/^4/.test(MathJax.version || '') || !MathJax.typeset) return MathJax.typesetPromise([el]);
+  const go = n => { try { MathJax.typeset([el]); return null; } catch (e) { if (!e.retry || n > 5) throw e; return e.retry.then(() => go(n + 1)); } };
+  return go(0);
+};
+const mjOk = () => window.MathJax && MathJax.startup && MathJax.startup.promise && MathJax.typesetPromise;
+const typeset = el => {
+  if (!mjOk()) return null;
+  mjQ = mjQ.then(() => mjOk() && MathJax.startup.promise).then(() => mjOk() && el.isConnected && mjRun(el))
+    .then(() => { if (mjOk() && el.isConnected && rawTex(el) && window.mjFallback) mjFallback('raw TeX left'); })
+    .catch(e => { console.error('MathJax typeset failed', e); if (window.mjFallback) mjFallback(e && e.message); });
+  return mjQ;
+};
+window.addEventListener('mj-ready', () => typeset(document.body));
 const DAY = 864e5;
 const pad = n => String(n).padStart(2, '0');
 const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
@@ -662,7 +781,7 @@ function srsApply(qid, ok, sure, prev) {
 }
 
 // ---------- stats ----------
-const score = a => a.ok ? (a.sure === false ? 0.5 : a.sure === 0.5 ? 0.75 : 1) : 0;
+const score = a => a.ok ? (a.sure === false ? 0.5 : a.sure === 0.5 || a.hint ? 0.75 : 1) : 0;
 function stats() {
   const Qs = Store.all('questions'), att = Object.entries(Store.all('attempts')).map(([id, a]) => Object.assign({ id }, a)).sort((a, b) => a.at < b.at ? 1 : a.at > b.at ? -1 : 0);
   const byQ = {}, con = {};
@@ -731,7 +850,7 @@ function latestIn(quizKey) { // latest attempt per qid within a quiz key
   Object.entries(Store.all('attempts')).forEach(([id, a]) => { if (a.quiz === quizKey && (!m[a.qid] || a.at >= m[a.qid].at)) m[a.qid] = Object.assign({ id }, a); });
   return m;
 }
-function toRes(a) { return { ok: a.ok, pick: a.pick, sure: a.sure, att: a.id }; }
+function toRes(a) { return { ok: a.ok, pick: a.pick, sure: a.sure, hint: a.hint, att: a.id }; }
 function buildRun(route) {
   const Qs = Store.all('questions'); let r;
   if (route.kind === 'quiz') {
@@ -766,7 +885,7 @@ const answered = k => !!run.res[run.qids[k]];
 function nextOpen() { const n = run.qids.length;
   for (let d = 1; d <= n; d++) { const k = (run.i + d) % n; if (!answered(k) && !run.skipped.has(run.qids[k])) return k; }
   for (let d = 1; d <= n; d++) { const k = (run.i + d) % n; if (!answered(k) && k !== run.i) return k; } return n; }
-function go(k) { run.i = Math.max(0, Math.min(k, run.qids.length)); flagOpen = false; persist(); showQuiz(); }
+function go(k) { run.i = Math.max(0, Math.min(k, run.qids.length)); flagOpen = false; fsOpen = false; persist(); showQuiz(); }
 
 // ---------- views ----------
 // Question content is authored by Claude from scraped course material, so treat it as untrusted.
@@ -786,9 +905,10 @@ const app = () => $('#app');
 const icon = id => `<svg class="ic" aria-hidden="true"><use href="#i-${id}"/></svg>`;
 // Examiner's marks, drawn by hand: tick (right and sure), orange tick (right but guessed), cross (wrong), dash (skipped).
 const MK = { ok: '<path d="M4 13.5c2 1.6 3.4 3.3 4.6 5.4C11 13 15 7.6 20.5 4"/>', no: '<path d="M5.5 5.5c4.3 4 8.6 8.6 13 13"/><path d="M18.5 5c-4.6 4.4-8.6 9-13 14"/>', sk: '<path d="M5 12.5c4.6-.8 9.3-1 14-.4"/>' };
-const MKNAME = { ok: 'right', gs: 'right, guessed', no: 'wrong', sk: 'skipped' };
-const markKind = (a, skipped) => a ? (a.ok ? (a.sure === false ? 'gs' : 'ok') : 'no') : skipped ? 'sk' : null;
-const mark = (k, draw) => k ? `<svg class="mk ${k}${draw ? ' draw' : ''}" viewBox="0 0 24 24" aria-hidden="true">${MK[k === 'gs' ? 'ok' : k]}</svg>` : '';
+const MKNAME = { ok: 'right', gs: 'right, guessed', ht: 'right, with a hint', no: 'wrong', sk: 'skipped' };
+// ht = right after opening a hint (formulas or a term): drawn like a guess, named apart.
+const markKind = (a, skipped) => a ? (a.ok ? (a.sure === false ? 'gs' : a.hint ? 'ht' : 'ok') : 'no') : skipped ? 'sk' : null;
+const mark = (k, draw) => k ? `<svg class="mk ${k}${draw ? ' draw' : ''}" viewBox="0 0 24 24" aria-hidden="true">${MK[k === 'gs' || k === 'ht' ? 'ok' : k]}</svg>` : '';
 let drawMark = false; // true for the one render straight after an answer, so the mark is drawn in
 const heat = m => m == null ? 'var(--untried)' : m < 0.5 ? 'var(--bad)' : m < 0.8 ? 'var(--shaky)' : 'var(--good)';
 
@@ -798,7 +918,7 @@ const preset = () => PRESETS.find(p => p.id === PREFS.preset) || PRESETS[0];
 function savePrefs() { lsSet('hub:prefs', JSON.stringify(PREFS)); Store.set('prefs/ui', JSON.parse(JSON.stringify(PREFS))); }
 // Study settings live in PREFS.study, so they sync across devices with the theme.
 const PACES = { cram: [1, 2, 4, 7, 10], std: [1, 3, 7, 14, 30], relaxed: [2, 5, 10, 21, 45] };
-const study = () => Object.assign({ n: 10, pace: 'std', sure: true, ask: true, report: true, mist: true, speed: 1, due: 'end', dueDay: 3, dueOff: 0 }, PREFS.study);
+const study = () => Object.assign({ n: 10, pace: 'std', sure: true, hints: true, hintPen: true, ask: true, report: true, mist: true, speed: 1, due: 'end', dueDay: 3, dueOff: 0 }, PREFS.study);
 const gaps = () => PACES[study().pace] || PACES.std;
 let palDirty = false;
 const HUE_NAMES = ['Red', 'Orange', 'Amber', 'Yellow', 'Lime', 'Green', 'Teal', 'Cyan', 'Blue', 'Indigo', 'Purple', 'Pink'];
@@ -854,7 +974,7 @@ const IMPORT_HINT = 'Tap <b>Import</b> above to add a quiz pack.';
 const repBtn = () => `<button class="pal-btn" id="repb" title="Report a problem with the hub">${icon('flag')}<span class="lbl">Report</span></button>`;
 function topbar(back) {
   const us = unitList().slice(0, 2), dots = [`var(--acc)`].concat(us.map(u => dot(unitHue(u.key))));
-  const left = back ? `<a class="crumb" href="${back.href}">${icon('left')}${esc(back.label)}</a>` : `<a class="brand" href="#/">${LOGO}<span class="wm">Study Hub</span></a>`;
+  const left = back ? `<a class="crumb" href="${back.href}">${icon('left')}${esc(back.label)}</a>` : `<a class="brand" href="#/">${LOGO}<span class="wm">Study Sauce</span></a>`;
   return `<header class="top"><div class="wrap">${left}<span class="sp"></span>
     ${study().report && !SOLO ? repBtn() : ''}
     <button class="pal-btn" id="palb" aria-expanded="false" aria-controls="pal"><span class="dots" aria-hidden="true">${dots.map(c => `<i style="background:${c}"></i>`).join('')}</span><span class="lbl">Settings</span></button></div></header>`;
@@ -945,7 +1065,9 @@ function studyPanel() {
     ${stSeg('n', 'Revision session length', [[5, '5'], [10, '10'], [15, '15'], [20, '20']], o.n)}
     ${stSeg('pace', 'Review spacing', [['cram', 'Cram'], ['std', 'Normal'], ['relaxed', 'Relaxed']], o.pace)}
     <p class="hint">${o.pace === 'cram' ? 'Reviews come back after 1, 2, 4, 7, then 10 days. Best with an exam in the next two weeks.' : o.pace === 'relaxed' ? 'Reviews come back after 2, 5, 10, 21, then 45 days.' : 'Reviews come back after 1, 3, 7, 14, then 30 days.'} New spacing applies from your next answer.</p>
-    ${stOnOff('sure', 'Ask how sure you were')}</div>
+    ${stOnOff('sure', 'Ask how sure you were')}${stOnOff('hints', 'Hints')}
+    ${o.hints ? stOnOff('hintPen', 'Penalise hints') : ''}
+    <p class="hint">Hints are the Hint and Formulas buttons above each question and the underlined key terms (tap one for what it means in plain words, with a link to its slide). ${o.hintPen ? 'A right answer given after opening a hint is marked with an orange tick and comes back sooner. The first hint on a question asks you to confirm.' : 'Hints are free: a right answer counts as right whatever you opened.'}</p></div>
     <div><h3>Content due</h3>
     ${stSeg('due', 'Each week is due', [['end', 'On the week'], ['ahead', 'Week ahead'], ['day', 'Day before'], ['custom', 'Custom']], o.due)}
     ${o.due === 'day' ? `<div class="srow"><span>Day of the week before</span><select class="edate" data-sd aria-label="Day of the week before">${DAYS.map((d, i) => `<option value="${i}"${+o.dueDay === i ? ' selected' : ''}>${d}</option>`).join('')}</select></div>` : ''}
@@ -987,12 +1109,12 @@ function featPanel() {
   return `<div><h3>Quiz packs</h3><div class="srow"><span>Add quizzes from a pack file</span><button class="btn out sm" id="impb">${icon('plus')}Import</button></div>
     <div class="srow"><span>Share quizzes as a pack file</span><button class="btn out sm" id="xpb">Export</button></div>
     <input type="file" id="impf" accept=".json,application/json" hidden>
-    <p class="hint" id="imph" role="status">${impMsg || 'A pack is a .json file of quizzes and practice exams, from another Study Hub’s Export or the ma-study skills. It never holds your answers or progress. Importing one again updates it.'}</p></div>
+    <p class="hint" id="imph" role="status">${impMsg || 'A pack is a .json file of quizzes and practice exams, from another Study Sauce’s Export or the study skills. It never holds your answers or progress. Importing one again updates it.'}</p></div>
     <div><h3>Add-ons</h3>${stOnOff('mist', 'Mistake log in Concepts')}${SOLO ? '' : stOnOff('ask', 'Ask Claude button') + stOnOff('report', 'Report button')}
     <p class="hint">Switch extras on or off. New add-ons will appear here.</p></div>`;
 }
 // ----- quiz packs: {format: 'ma-study-pack', version: 1, concepts, questions, quizzes, exams, meta}, each {id: doc} -----
-const PACK_COLS = ['concepts', 'questions', 'quizzes', 'exams', 'meta'];
+const PACK_COLS = ['concepts', 'questions', 'quizzes', 'exams', 'meta', 'formulas', 'terms'];
 const PACK_ID = /^[A-Za-z0-9][\w.-]{0,99}$/;
 const packErr = m => { const e = new Error(m); e.safe = true; throw e; }; // message is already HTML-escaped
 function checkPack(p) {
@@ -1017,12 +1139,20 @@ function checkPack(p) {
         if (d.tol != null && !(typeof d.tol === 'number' && d.tol >= 0)) bad(`${esc(where)}: "tol" must be a number ≥ 0.`);
         if (d.concepts != null && !(Array.isArray(d.concepts) && d.concepts.every(x => str(x, 100)))) bad(`${esc(where)}: "concepts" must be a list of concept ids.`);
         ['e', 's', 'w'].forEach(k => { if (d[k] != null && !str(d[k])) bad(`${esc(where)}: "${k}" must be text.`); });
+        if (d.why != null && !(mc && Array.isArray(d.why) && d.why.length === d.o.length && d.why.every(x => x == null || str(x, 4000)))) bad(`${esc(where)}: "why" needs one reason (or null) per option.`);
       } else if (c === 'quizzes' || c === 'exams') {
         if (!str(d.title, 200) || !d.title) bad(`${esc(where)} needs a "title".`);
         if (!Array.isArray(d.qids) || !d.qids.length) bad(`${esc(where)} needs "qids", a list of question ids.`);
         const miss = d.qids.find(q => typeof q !== 'string' || !((p.questions || {})[q] || Store.all('questions')[q])); if (miss !== undefined) bad(`${esc(where)} lists question “${esc(String(miss).slice(0, 60))}”, which isn’t in the pack or the hub.`);
         if (c === 'exams' && d.minutes != null && !(d.minutes > 0)) bad(`${esc(where)}: "minutes" must be a number above 0.`);
       } else if (c === 'concepts' && (!str(d.name, 200) || !d.name)) bad(`${esc(where)} needs a "name".`);
+      else if (c === 'formulas') {
+        if (!str(d.name, 200) || !d.name || !str(d.tex, 2000) || !d.tex) bad(`${esc(where)} needs a "name" and LaTeX "tex" (up to 2000 characters).`);
+        if (d.concepts != null && !(Array.isArray(d.concepts) && d.concepts.every(x => str(x, 100)))) bad(`${esc(where)}: "concepts" must be a list of concept ids.`);
+      } else if (c === 'terms') {
+        if (!str(d.term, 200) || !d.term.trim() || !((str(d.def, 4000) && d.def) || (str(d.simple, 4000) && d.simple))) bad(`${esc(where)} needs a "term" and a definition "def" or "simple".`);
+        if (d.aka != null && !(Array.isArray(d.aka) && d.aka.every(x => str(x, 200)))) bad(`${esc(where)}: "aka" must be a list of other names.`);
+      }
       out[c][id] = JSON.parse(JSON.stringify(d)); n++;
     }
   }
@@ -1048,7 +1178,7 @@ function importPack(text) {
 // ----- Export: picked quizzes and exams as a pack, with only the questions, concepts and unit names they use -----
 function packOf(ids) {
   const Z = Store.all('quizzes'), E = Store.all('exams'), Q = Store.all('questions'), C = Store.all('concepts'), M = Store.all('meta');
-  const p = { format: 'ma-study-pack', version: 1, title: 'Study Hub export ' + new Date().toISOString().slice(0, 10), concepts: {}, questions: {}, quizzes: {}, exams: {}, meta: {} };
+  const p = { format: 'ma-study-pack', version: 1, title: 'Study Sauce export ' + new Date().toISOString().slice(0, 10), concepts: {}, questions: {}, quizzes: {}, exams: {}, meta: {}, formulas: {}, terms: {} };
   for (const id of ids) {
     const c = Z[id] ? 'quizzes' : E[id] ? 'exams' : null; if (!c) continue;
     const d = JSON.parse(JSON.stringify(Store.all(c)[id])); d.qids = (d.qids || []).filter(q => Q[q]); if (!d.qids.length) continue; delete d.renamed; delete d.src;
@@ -1056,6 +1186,8 @@ function packOf(ids) {
     d.qids.forEach(q => { p.questions[q] = JSON.parse(JSON.stringify(Q[q])); (Q[q].concepts || []).forEach(k => { if (C[k]) p.concepts[k] = JSON.parse(JSON.stringify(C[k])); }); });
     const mk = Object.keys(M).find(k => M[k] && unitKey(M[k].unit) === unitKey(d.unit));
     if (mk) p.meta[mk] = { unit: M[mk].unit, name: M[mk].name }; // never the student's own dates or weeks
+    fsAll(d.unit).forEach(f => { const x = Object.assign({}, f); delete x.id; p.formulas[f.id] = x; }); // the unit's formula sheet travels with it
+    tmAll(d.unit).forEach(t => { const x = Object.assign({}, t); delete x.id; p.terms[t.id] = x; }); // and its key terms
   }
   return p;
 }
@@ -1083,36 +1215,66 @@ function askDlg(o) {
     ${o.input != null ? `<input type="text" id="askin" maxlength="200" aria-label="${esc(o.label || o.title)}" value="${esc(o.input)}">` : ''}
     <div class="qnav">${o.cancel === '' ? '' : `<button type="button" class="btn out" value="no">${esc(o.cancel || 'Cancel')}</button>`}<button type="submit" class="btn${o.bad ? ' bad' : ''}" value="ok">${esc(o.ok || 'OK')}</button></div></form>`;
   return new Promise(res => {
-    let out = null;
-    d.querySelector('form').onsubmit = e => { e.preventDefault(); const t = $('#askin'); out = t ? t.value.trim() : true; if (t && !out) return t.focus(); d.close(); };
-    d.querySelectorAll('button[value="no"]').forEach(b => b.onclick = () => d.close());
-    d.onclose = () => res(out);
+    let out = null, fin = false;
+    // Resolve on the press itself; the close event alone can arrive late (or not at all in a hidden tab).
+    const end = () => { if (fin) return; fin = true; if (d.open) d.close(); res(out); };
+    d.querySelector('form').onsubmit = e => { e.preventDefault(); const t = $('#askin'); out = t ? t.value.trim() : true; if (t && !out) return t.focus(); end(); };
+    d.querySelectorAll('button[value="no"]').forEach(b => b.onclick = end);
+    d.onclose = end;
     d.showModal(); const t = $('#askin'); if (t) t.select();
   });
 }
 // ----- Quiz and exam lists: tags, a filter, a ⋯ menu per row and for the page, and select mode -----
 let SEL = null; // select mode: {key, tab, ids: Set, act: 'share' | ''}
 const isCalc = q => q && !q.o && (q.num != null || /\\\(|\\\[/.test(String(q.q || '') + String(q.ans || '')));
-const TAGL = { pack: 'Imported', hub: 'Made in hub', chat: 'From chat', calc: 'Calculation', con: 'Concepts' };
+const TAGL = { lecture: 'After lecture', studio: 'Studio style', review: 'Review', pack: 'Imported', hub: 'Made in hub', chat: 'From chat', calc: 'Calculation', con: 'Concepts' };
+const PURPOSES = ['lecture', 'studio', 'review'];
 function qTags(z) {
   const Q = Store.all('questions'), qs = (z.qids || []).map(i => Q[i]).filter(Boolean);
-  return [z.src === 'pack' ? 'pack' : z.gen ? 'hub' : 'chat', qs.length && qs.filter(isCalc).length * 2 >= qs.length ? 'calc' : 'con'];
+  return (PURPOSES.includes(z.purpose) ? [z.purpose] : []).concat([z.src === 'pack' ? 'pack' : z.gen ? 'hub' : 'chat', qs.length && qs.filter(isCalc).length * 2 >= qs.length ? 'calc' : 'con']);
 }
 // "From chat" is the usual case, so rows only name the other sources.
 const tagHtml = ts => ts.filter(t => t !== 'chat').map(t => `<span class="tag${t === 'calc' ? ' t-calc' : t === 'con' ? ' t-con' : t === 'pack' ? ' t-pack' : ''}">${TAGL[t]}</span>`).join('');
 const rerender = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
-const qfKey = (key, tab) => 'hub:qf:' + key + ':' + tab;
+const qfKey = (key, tab) => 'hub:qf:' + key + ':' + tab, qsKey = (key, tab) => 'hub:qs:' + key + ':' + tab;
+// Filter groups: ticks in one group widen (any of them), ticks across groups narrow (all groups must match).
+const ST_L = { quizzes: { 'st-new': 'Not started', 'st-part': 'In progress', 'st-done': 'Done' }, exams: { 'st-new': 'Not taken', 'st-part': 'In progress', 'st-done': 'Taken' } };
+const QF_GROUPS = [['Purpose', PURPOSES], ['Source', ['pack', 'hub', 'chat']], ['Question type', ['calc', 'con']], ['Progress', ['st-new', 'st-part', 'st-done']]];
+// Sorts. Each item's m: {created, week, done 0–1, score 0–1 or null, last ISO, est 0–1 (expected score)}.
+const QSORT = { new: 'Newest', rec: 'Recommended', week: 'Week', done: 'Least done', hard: 'Hardest', last: 'Last practised' };
+const qsortFn = s => ({
+  new: (a, b) => cmpS(b.created, a.created),
+  week: (a, b) => (a.week || 99) - (b.week || 99) || cmpS(a.created, b.created),
+  done: (a, b) => a.done - b.done || cmpS(b.created, a.created),
+  hard: (a, b) => a.est - b.est || cmpS(b.created, a.created),
+  last: (a, b) => cmpS(b.last, a.last) || cmpS(b.created, a.created),
+  // In progress first, then not started (weakest concepts first), then finished (lowest score first).
+  rec: (a, b) => recRank(a) - recRank(b) || cmpS(b.created, a.created) })[s];
+const cmpS = (x, y) => (x || '') < (y || '') ? -1 : (x || '') > (y || '') ? 1 : 0;
+const recRank = m => m.done >= 1 ? 2 + m.est : m.done > 0 ? m.est : 1 + m.est;
+function qfGet(key, tab) { try { const v = JSON.parse(ssGet(qfKey(key, tab)) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
 const menuBtn = (label, cls) => `<button type="button" class="iconb qmore${cls || ''}" data-mb aria-haspopup="true" aria-expanded="false" aria-label="${esc(label)}">${icon('dots')}</button>`;
 const menuItem = (act, ic, label, id, bad) => `<button type="button" class="copt mi${bad ? ' bad' : ''}" role="menuitem" data-act="${act}"${id ? ` data-id="${esc(id)}"` : ''}>${icon(ic)}<span>${label}</span></button>`;
 // items: [[id, doc, rowHtml(inner), cellsHtml]]; tab is 'quizzes' or 'exams'.
 function qlist(key, tab, items) {
-  const all = items.map(it => it.concat([qTags(it[1])])), kinds = ['pack', 'hub', 'chat', 'calc', 'con'].filter(t => all.some(it => it[4].includes(t)));
-  let f = ssGet(qfKey(key, tab)) || 'all'; if (!kinds.includes(f)) f = 'all';
-  const showF = all.length > 6 && kinds.length > 2, shown = showF && f !== 'all' ? all.filter(it => it[4].includes(f)) : all;
+  const stOf = m => m.done >= 1 ? 'st-done' : m.done > 0 ? 'st-part' : 'st-new';
+  const all = items.map(it => it.concat([qTags(it[1])])), facets = it => it[4].concat([stOf(it[2].m)]);
+  const cnt = k => all.filter(it => facets(it).includes(k)).length;
+  // A group shows when at least one of its options would narrow the list.
+  const groups = QF_GROUPS.map(([g, ks]) => [g, ks.filter(k => cnt(k))]).filter(([, ks]) => ks.some(k => cnt(k) < all.length));
+  const live = new Set(groups.flatMap(([, ks]) => ks)), f = qfGet(key, tab).filter(k => live.has(k));
+  const showF = all.length > 3, srt = QSORT[ssGet(qsKey(key, tab))] ? ssGet(qsKey(key, tab)) : 'new';
+  const pass = it => groups.every(([, ks]) => { const on = ks.filter(k => f.includes(k)); return !on.length || on.some(k => facets(it).includes(k)); });
+  const shown = (showF ? all.filter(pass) : all).sort((a, b) => qsortFn(srt)(a[2].m, b[2].m));
   const sel = SEL && SEL.key === key && SEL.tab === tab ? SEL : null, noun = tab === 'exams' ? 'exam' : 'quiz';
-  const filt = showF ? `<div class="cfilt"><button type="button" class="btn out sm cfbtn" data-mb aria-haspopup="true" aria-expanded="false">${icon('filter')}${f === 'all' ? 'Filter' : TAGL[f]}</button>
-    <div class="cmenu" hidden role="menu">${[['all', 'All']].concat(kinds.map(k => [k, TAGL[k]])).map(([v, l]) => `<label class="copt"><input type="radio" name="qf" data-qf="${v}"${v === f ? ' checked' : ''}><span>${l}</span><span class="n">${v === 'all' ? all.length : all.filter(it => it[4].includes(v)).length}</span></label>`).join('')}</div></div>` : '';
-  const bar = sel ? selBar(sel, shown.length) : `<div class="lbar">${filt}<span class="sp"></span><div class="cfilt">${menuBtn(tab === 'exams' ? 'Exam list options' : 'Quiz list options')}
+  const lab = k => TAGL[k] || ST_L[tab][k];
+  // Both buttons keep one width: the sort button stacks every label in one cell, the filter badge keeps its slot when empty.
+  const sortB = showF ? `<div class="cfilt"><button type="button" class="btn out sm cfbtn" data-mb data-qsb aria-haspopup="true" aria-expanded="false" aria-label="Sort: ${QSORT[srt]}">${icon('sort')}<span class="stk" aria-hidden="true">${Object.entries(QSORT).map(([k, l]) => `<span${k === srt ? '' : ' class="off"'}>${l}</span>`).join('')}</span></button>
+    <div class="cmenu" hidden role="group" aria-label="Sort by"><h3>Sort by</h3>${Object.entries(QSORT).map(([k, l]) => `<label class="copt"><input type="radio" name="qs" data-qs="${k}"${k === srt ? ' checked' : ''}><span>${l}</span><span></span></label>`).join('')}</div></div>` : '';
+  const filt = showF && groups.length ? `<div class="cfilt"><button type="button" class="btn out sm cfbtn" data-mb data-qfb aria-haspopup="true" aria-expanded="false">${icon('filter')}Filter<span class="badge${f.length ? '' : ' off'}">${f.length}</span></button>
+    <div class="cmenu" hidden role="group" aria-label="Filter">${groups.map(([g, ks]) => `<h3>${g}</h3>${ks.map(k => `<label class="copt"><input type="checkbox" data-qf="${k}"${f.includes(k) ? ' checked' : ''}><span>${lab(k)}</span><span class="n">${cnt(k)}</span></label>`).join('')}`).join('')}
+    <div class="cmenu-f"><button type="button" class="btn sm out" data-act="qfclear"${f.length ? '' : ' disabled'}>Show all</button></div></div></div>` : '';
+  const bar = sel ? selBar(sel, shown.length) : `<div class="lbar">${sortB}${filt}<span class="sp"></span><div class="cfilt">${menuBtn(tab === 'exams' ? 'Exam list options' : 'Quiz list options')}
     <div class="cmenu" hidden role="menu">${menuItem('pset', 'gear', 'Settings')}${menuItem('pshare', 'share', 'Share…')}${menuItem('psel', 'check', 'Select')}</div></div></div>`;
   const rows = shown.map(([id, z, inner, cells, ts]) => sel
     ? `<label class="qrow pick"><input type="checkbox" data-pk="${esc(id)}"${sel.ids.has(id) ? ' checked' : ''} aria-label="Pick ${esc(z.title)}"><div>${inner.text}${ts.length ? `<div class="tags">${tagHtml(ts)}</div>` : ''}</div>${cells || ''}</label>`
@@ -1131,12 +1293,16 @@ function selBar(sel, nShown) {
 const docOf = id => Store.all('quizzes')[id] ? ['quizzes', Store.all('quizzes')[id]] : Store.all('exams')[id] ? ['exams', Store.all('exams')[id]] : [null, null];
 function delDocs(ids) { ids.forEach(id => { const [c] = docOf(id); if (!c) return; Store.remove(c + '/' + id); if (c === 'quizzes' && Store.get('progress/' + id)) Store.remove('progress/' + id); }); }
 function menuSet(b, on) { const m = b.nextElementSibling; if (!m) return; m.hidden = !on; b.setAttribute('aria-expanded', String(on)); if (on) { const f = m.querySelector('input:checked, .mi, input'); if (f) f.focus(); } }
+// Ticking a filter re-renders the list; the filter menu stays open with focus on the same box.
+function qfReopen(sel) { rerender(); const b = $('#qlist [data-qfb]'); if (!b) return; menuSet(b, true); const i = b.nextElementSibling.querySelector(sel); if (i) i.focus(); }
 const closeMenus = except => document.querySelectorAll('#qlist [data-mb][aria-expanded="true"]').forEach(b => { if (b !== except) menuSet(b, false); });
 document.addEventListener('pointerdown', e => { if (!e.target.closest('#qlist .cfilt')) closeMenus(); });
 document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; const b = document.querySelector('#qlist [data-mb][aria-expanded="true"]'); if (b) { menuSet(b, false); b.focus(); } });
 document.addEventListener('change', e => {
   const L = e.target.closest('#qlist'); if (!L) return;
-  if (e.target.dataset.qf) { ssSet(qfKey(L.dataset.key, L.dataset.tab), e.target.dataset.qf); return rerender(); }
+  if (e.target.dataset.qf) { const k = e.target.dataset.qf, f = qfGet(L.dataset.key, L.dataset.tab).filter(x => x !== k);
+    ssSet(qfKey(L.dataset.key, L.dataset.tab), JSON.stringify(e.target.checked ? f.concat([k]) : f)); return qfReopen(`[data-qf="${k}"]`); }
+  if (e.target.dataset.qs) { ssSet(qsKey(L.dataset.key, L.dataset.tab), e.target.dataset.qs); rerender(); const b = $('#qlist [data-qsb]'); if (b) b.focus(); return; }
   if (e.target.dataset.pk && SEL) { const id = e.target.dataset.pk; e.target.checked ? SEL.ids.add(id) : SEL.ids.delete(id);
     $('#qlist .lbar').outerHTML = selBar(SEL, L.querySelectorAll('[data-pk]').length); }
 });
@@ -1144,6 +1310,7 @@ document.addEventListener('click', async e => {
   const L = e.target.closest('#qlist'); if (!L) return;
   const mb = e.target.closest('[data-mb]'); if (mb) { closeMenus(mb); return menuSet(mb, mb.getAttribute('aria-expanded') !== 'true'); }
   const a = e.target.closest('[data-act]'); if (!a) return;
+  if (a.dataset.act === 'qfclear') { ssSet(qfKey(L.dataset.key, L.dataset.tab), '[]'); return qfReopen('[data-qf]'); }
   closeMenus(); const act = a.dataset.act, id = a.dataset.id, key = L.dataset.key, tab = L.dataset.tab, noun = L.dataset.noun;
   if (act === 'pset') { ssSet('hub:ptab', tab === 'exams' ? 'exams' : 'study'); return setTimeout(palOpen); }
   if (act === 'pshare' || act === 'psel') { SEL = { key, tab, ids: new Set(), act: act === 'pshare' ? 'share' : '' }; return rerender(); }
@@ -1220,9 +1387,130 @@ function quizShell() {
   app().innerHTML = topbar(back) + `<main class="wrap qpage">
     <div class="qhead u" ${uAttr(u)}><h1>${esc(run.title)}</h1><span class="n" id="score"></span></div>
     <nav class="cells big" id="strip" aria-label="Questions"></nav><section id="card"></section></main>`;
+  if (study().hints && (run.Q || []).some(q => fsFor(q).length)) $('main.qpage').classList.add('fsroom'); // keep room beside the card for the formula panel
 }
 
+// ----- formula sheet: formulas/<id> = {unit, week, name, tex, concepts?, order?, extra?}. extra = not on the exam sheet. -----
+let fsOpen = false, hintOpen = false, hintQ = null; // the hint closes when the question changes
+const fsAll = unit => Object.entries(Store.all('formulas')).filter(([, f]) => f && unitKey(f.unit) === unitKey(unit) && typeof f.name === 'string' && typeof f.tex === 'string')
+  .map(([id, f]) => Object.assign({ id }, f)).sort((a, b) => wkNum(a.week) - wkNum(b.week) || (+a.order || 0) - (+b.order || 0));
+// A question's formulas: those tagged with one of its concepts, else its week's.
+function fsFor(q) {
+  const F = fsAll(q.unit), cs = new Set(q.concepts || []), hit = F.filter(f => (f.concepts || []).some(c => cs.has(c)));
+  return hit.length ? hit : F.filter(f => wkNum(f.week) === wkNum(q.week || q.w));
+}
+// Several equations joined by ",\quad" each get their own line.
+const fsParts = t => {
+  const out = []; let d = 0, s = 0;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (c === '{') d++; else if (c === '}') d--;
+    else if (c === ',' && d === 0) { const m = /^,\s*\\q?quad\s*/.exec(t.slice(i)); if (m) { out.push(t.slice(s, i)); s = i + m[0].length; i = s - 1; } }
+  }
+  out.push(t.slice(s)); return out.filter(x => x.trim());
+};
+const fsRow = f => `<div class="fsr"><span>${esc(f.name)}${f.extra ? ' <span class="tag">Not on the sheet</span>' : ''}</span><div>${fsParts(f.tex).map(p => `\\[${esc(p)}\\]`).join('')}</div></div>`;
+// The quiz's formulas open in a side panel (a bottom sheet on phones) that floats over the page, so the question never moves.
+// It stays open from question to question, showing each one's formulas.
+function fsBox(F) {
+  const w = $('#fsw'); if (!w) return;
+  w.hidden = !fsOpen || !F.length;
+  w.innerHTML = w.hidden ? '' : `<div class="pal-h"><p>From the formula sheet</p><button class="x" id="fsx" aria-label="Close formulas">${icon('x')}</button></div><div class="fsp-b">${F.map(fsRow).join('')}</div>`;
+  if (!w.hidden) { $('#fsx').onclick = () => { fsOpen = false; fsBox(F); const b = $('#fsb'); if (b) { b.setAttribute('aria-expanded', 'false'); b.focus(); } }; typeset(w); }
+}
+// In a practice exam the official sheet opens in the same panel: beside the paper from 1100px, under the question card below that (the exam bar stays stuck at the top, so the button is always in reach).
+// The current question's formulas come first; the rest of the sheet sits below in week folds, closed to start. It stays open from question to question.
+function exSheet(unit, open) {
+  const w = $('#fsw'), b = $('#fsb'); if (!w) return;
+  w.hidden = !open; if (b) b.setAttribute('aria-expanded', String(open));
+  if (!open) { w.innerHTML = ''; w.dataset.q = ''; return; }
+  const q = ex && ex.Q[ex.s.i || 0]; if (q && w.dataset.q === q.id) return; // already showing this question
+  const wasOpen = new Set([...w.querySelectorAll('details[open]')].map(d => d.dataset.w));
+  const F = fsAll(unit).filter(f => !f.extra), mine = q ? fsFor(q).filter(f => !f.extra) : [], ids = new Set(mine.map(f => f.id));
+  const rest = F.filter(f => !ids.has(f.id)), wks = [...new Set(rest.map(f => wkNum(f.week)))].sort((a, b) => (a || 99) - (b || 99)); // week 0 = general maths, last
+  w.style.top = $('#strip').offsetTop + 'px'; // beside the paper, level with the question strip (only used from 1100px)
+  w.innerHTML = `<div class="pal-h"><p>Formula sheet</p><button class="x" id="fsx" aria-label="Close formula sheet">${icon('x')}</button></div>
+    <div class="fsp-b fsl"><h3>This question</h3>${mine.length ? mine.map(fsRow).join('') : '<p class="muted" style="margin:0">Nothing on the sheet is tagged for this one.</p>'}</div>
+    <div class="fsks">${wks.map(k => { const R = rest.filter(f => wkNum(f.week) === k);
+      return `<details class="wk fsk" data-w="${k}"${wasOpen.has(String(k)) ? ' open' : ''}><summary><span class="wn">${k ? 'Week ' + k : 'General'}<small>${R.length} ${R.length === 1 ? 'formula' : 'formulas'}</small></span><svg class="ic chev" aria-hidden="true"><use href="#i-down"/></svg></summary><div class="fsp-b"></div></details>`; }).join('')}</div>`;
+  w.dataset.q = q ? q.id : '';
+  $('#fsx').onclick = () => { exSheet(unit, false); if (b) b.focus(); };
+  // A closed fold has no width, so MathJax can't line-break inside it: fill and typeset each fold when it first opens.
+  const fold = d => { if (!d.open || d.dataset.ts) return; d.dataset.ts = '1'; const k = +d.dataset.w, x = d.querySelector('.fsp-b');
+    x.innerHTML = rest.filter(f => wkNum(f.week) === k).map(fsRow).join(''); typeset(x); };
+  w.querySelectorAll('details.fsk').forEach(d => d.addEventListener('toggle', () => fold(d)));
+  typeset(w.querySelector('.fsl')); w.querySelectorAll('details.fsk[open]').forEach(fold);
+}
+
+// Hints opened on a question before it was answered: run.hint = Map qid -> Set of what was opened ('Formulas', or a term).
+function noteHint(qid, what) { if (!study().hintPen) return; run.hint = run.hint instanceof Map ? run.hint : new Map(); (run.hint.get(qid) || run.hint.set(qid, new Set()).get(qid)).add(what); }
+
+// With hint penalties on, the first hint on an unanswered question asks first. Later ones on the same question don't.
+async function hintGate(q, answered) {
+  if (answered || !study().hintPen || (run.hint instanceof Map && run.hint.has(q.id))) return true;
+  return !!(await askDlg({ title: 'Use a hint?', body: 'If you get this one right it will be marked “right, with a hint” and come back sooner. You can turn this off in Settings, Study.', ok: 'Use hint' }));
+}
+
+// ----- key terms: terms/<id> = {unit, week, term, aka?, def (exact), simple (plain words), concepts?, link?{d}} -----
+const tmAll = unit => Object.entries(Store.all('terms')).filter(([, t]) => t && unitKey(t.unit) === unitKey(unit) && typeof t.term === 'string' && t.term.trim() && (t.def || t.simple))
+  .map(([id, t]) => Object.assign({ id }, t));
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// One regex per unit: every name and alias, longest first, whole words only.
+const TMRE = {};
+function tmIndex(unit) {
+  const k = unitKey(unit), T = tmAll(unit), sig = T.map(t => t.id).join();
+  if (TMRE[k] && TMRE[k].sig === sig) return TMRE[k];
+  const by = new Map(); T.forEach(t => [t.term].concat(Array.isArray(t.aka) ? t.aka : []).forEach(n => { n = String(n || '').trim(); if (n.length > 1 && !by.has(n.toLowerCase())) by.set(n.toLowerCase(), t); }));
+  const names = [...by.keys()].sort((a, b) => b.length - a.length);
+  return TMRE[k] = { sig, by, re: names.length ? new RegExp(`(?<![\\w-])(${names.map(reEsc).join('|')})(?![\\w-])`, 'gi') : null };
+}
+// Underline the first use of each term in el. Runs before MathJax, so text inside \( \), \[ \] or $$ $$ is left alone.
+function termify(el, unit, seen) {
+  const ix = tmIndex(unit); if (!el || !ix.re) return [];
+  const found = [], tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentElement.closest('button, a, code, pre, .term, mjx-container') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+  const nodes = []; while (tw.nextNode()) nodes.push(tw.currentNode);
+  nodes.forEach(n => {
+    const s = n.nodeValue, math = [...s.matchAll(/\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$/g)].map(m => [m.index, m.index + m[0].length]);
+    const hits = []; ix.re.lastIndex = 0; let m;
+    while ((m = ix.re.exec(s))) { const t = ix.by.get(m[1].toLowerCase()), a = m.index, b = a + m[1].length;
+      if (seen.has(t.id) || math.some(([x, y]) => a < y && b > x)) continue; seen.add(t.id); found.push(t); hits.push([a, b, t]); }
+    if (!hits.length) return;
+    const f = document.createDocumentFragment(); let at = 0;
+    hits.forEach(([a, b, t]) => { f.append(s.slice(at, a)); const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'term'; btn.dataset.t = t.id; btn.setAttribute('aria-expanded', 'false'); btn.textContent = s.slice(a, b); f.append(btn); at = b; });
+    f.append(s.slice(at)); n.replaceWith(f);
+  });
+  return found;
+}
+// The term's definition in a bubble under the word (above it when there's no room below). Tap again, tap elsewhere or Esc closes it.
+function termClose(focus) {
+  const p = $('#tpop'); if (!p) return; const b = document.querySelector('.term[aria-expanded="true"]');
+  p.remove(); document.removeEventListener('pointerdown', termOut, true); document.removeEventListener('keydown', termKey, true); window.removeEventListener('resize', termClose);
+  if (b) { b.setAttribute('aria-expanded', 'false'); if (focus) b.focus(); }
+}
+const termOut = e => { if (!e.target.closest('#tpop, .term[aria-expanded="true"]')) termClose(); };
+const termKey = e => { if (e.key === 'Escape') { e.preventDefault(); termClose(true); } };
+function termPlace(p, btn) {
+  const r = btn.getClientRects()[0] || btn.getBoundingClientRect(), vw = document.documentElement.clientWidth, w = p.offsetWidth, h = p.offsetHeight;
+  const x = Math.max(16, Math.min(r.left + r.width / 2 - w / 2, vw - 16 - w)), below = r.bottom + 10 + h <= innerHeight - 8 || r.top - 10 - h < 8;
+  p.classList.toggle('up', !below);
+  p.style.left = (x + scrollX) + 'px'; p.style.top = ((below ? r.bottom + 10 : r.top - 10 - h) + scrollY) + 'px';
+  p.style.setProperty('--ax', Math.max(14, Math.min(r.left + r.width / 2 - x, w - 14)) + 'px');
+}
+function termBox(btn, q, answered) {
+  const t = Object.assign({ id: btn.dataset.t }, Store.get('terms/' + btn.dataset.t)), open = btn.getAttribute('aria-expanded') === 'true';
+  termClose(); if (open || !t.term) return;
+  if (!answered) noteHint(q.id, t.term);
+  document.body.insertAdjacentHTML('beforeend', `<div class="cmenu tpop" id="tpop" role="dialog" aria-label="${esc(t.term)}"><p>${esc(t.term)}</p><div class="fsr"><div>${H(t.simple || t.def)}</div></div>${links({ link: { d: (t.link || {}).d } }, true, false)}</div>`);
+  const p = $('#tpop'); btn.setAttribute('aria-expanded', 'true'); btn.setAttribute('aria-controls', 'tpop');
+  termPlace(p, btn);
+  const tp = typeset(p); if (tp) tp.then(() => p.isConnected && termPlace(p, btn));
+  document.addEventListener('pointerdown', termOut, true); document.addEventListener('keydown', termKey, true); window.addEventListener('resize', termClose);
+}
+function wireTerms(root, q, answered) { root.querySelectorAll('.term').forEach(b => b.onclick = async () => {
+  if (b.getAttribute('aria-expanded') !== 'true' && !(await hintGate(q, answered))) return; termBox(b, q, answered); }); }
+
 function showQuiz() {
+  termClose();
   if (!$('#strip')) quizShell();
   strip();
   const c = $('#card'), n = run.qids.length;
@@ -1233,8 +1521,13 @@ function showQuiz() {
   const body = q.o ? `<div class="opts">${q.o.map((t, k) => `<button class="opt" id="o${k}" data-k="${k}"><span class="k">${'ABCD'[k]}</span><span>${H(t)}</span></button>`).join('')}</div>`
     : `<form class="numf" id="nf"><input id="nin" inputmode="decimal" aria-label="Your answer" placeholder="Your answer" autocomplete="off"><button class="btn" type="submit">Check</button></form>`;
   const flagged = Object.values(Store.all('flags')).some(f => f.qid === q.id && !f.resolved);
+  const F = study().hints ? fsFor(q) : [], hb = hintOk(q);
+  if (hintQ !== q.id) { hintQ = q.id; hintOpen = false; }
+  // Hint and Formulas sit above the question; what they open drops in under them, so neither button moves.
+  const tools = F.length || hb ? `<div class="qtools">${F.length ? `<button class="btn out sm" id="fsb" aria-expanded="${fsOpen}" aria-controls="fsw">${icon('sigma')}Formulas</button>` : ''}${hb ? `<button class="btn out sm" id="hintb" aria-expanded="${hintOpen}" aria-controls="hintw">${icon('spark')}Hint</button>` : ''}</div>
+    <aside class="cmenu fsp hintp" id="hintw" aria-label="Hint" hidden></aside><aside class="cmenu fsp" id="fsw" aria-label="Formulas" hidden></aside>` : '';
   c.innerHTML = `<div class="head"><span class="qn">Q${i + 1}</span><span class="wkt">${esc(q.w)}</span><span id="mkw">${mark(mk, drawMark)}</span></div>
-    <div class="body"><div class="q">${H(q.q)}</div>${!r && run.skipped.has(q.id) ? '<div class="state">You skipped this one earlier.</div>' : ''}${body}<div id="fbw"></div>
+    <div class="body">${tools}<div class="q">${H(q.q)}</div>${!r && run.skipped.has(q.id) ? '<div class="state">You skipped this one earlier.</div>' : ''}${body}<div id="fbw"></div>
     <div class="qnav"><span><button class="btn out" id="prev" ${i === 0 ? 'disabled' : ''}>${icon('left')}Back</button><button class="btn out" id="flag" ${flagged ? 'disabled' : ''}>${icon('flag')}${flagged ? 'Flagged' : 'Flag'}</button></span>
     <span>${r ? '' : '<button class="btn out" id="skip">Skip</button>'}<button class="btn${r ? '' : ' out'}" id="next">${r ? 'Next question' : 'Next'}${icon('right')}</button></span></div>
     <div id="flagw"></div></div>`;
@@ -1242,6 +1535,11 @@ function showQuiz() {
   $('#next').onclick = () => r ? go(nextOpen()) : go(i + 1);
   if ($('#skip')) $('#skip').onclick = () => { run.skipped.add(q.id); go(nextOpen()); };
   $('#flag').onclick = () => { flagOpen = !flagOpen; flagBox(q); };
+  if (F.length) $('#fsb').onclick = async () => { if (!fsOpen && !(await hintGate(q, !!r))) return; fsOpen = !fsOpen; if (fsOpen && !r) noteHint(q.id, 'Formulas'); fsBox(F); $('#fsb').setAttribute('aria-expanded', String(fsOpen)); };
+  fsBox(F);
+  if (hb) { $('#hintb').onclick = async () => { if (!hintOpen && !(await hintGate(q, !!r))) return; hintOpen = !hintOpen; if (hintOpen && !r) noteHint(q.id, 'Hint'); $('#hintb').setAttribute('aria-expanded', String(hintOpen)); hintBox(q); }; hintBox(q); }
+  // Before answering only the question is tappable: definitions in the options would give the answer away.
+  run.tseen = new Set(); if (study().hints) { termify(c.querySelector('.q'), q.unit, run.tseen); wireTerms(c.querySelector('.q'), q, !!r); }
   if (r) feedback(); else {
     if (q.o) c.querySelectorAll('.opt').forEach(b => b.onclick = () => answer(+b.dataset.k));
     else $('#nf').onsubmit = e => { e.preventDefault(); const v = parseFloat($('#nin').value); if (!isNaN(v)) answer(v); };
@@ -1263,25 +1561,37 @@ function flagBox(q) {
 function answer(v) {
   const q = run.Q[run.i], ok = q.o ? v === q.a : Math.abs(v - q.num) <= q.tol;
   const prev = Store.get('srs/' + q.id);
-  const att = Store.add('attempts', { qid: q.id, quiz: run.quiz, ok, pick: v, sure: null, at: new Date().toISOString() });
-  run.res[q.id] = { ok, pick: v, sure: null, att, prev: prev ? Object.assign({}, prev) : null, fresh: true };
+  const used = run.hint instanceof Map && run.hint.get(q.id), hint = used && used.size ? [...used] : undefined;
+  const att = Store.add('attempts', Object.assign({ qid: q.id, quiz: run.quiz, ok, pick: v, sure: null, at: new Date().toISOString() }, hint ? { hint } : {}));
+  run.res[q.id] = { ok, pick: v, sure: null, hint, att, prev: prev ? Object.assign({}, prev) : null, fresh: true };
   run.skipped.delete(q.id);
-  srsApply(q.id, ok, true, prev);
+  srsApply(q.id, ok, hint ? 0.5 : true, prev); // right with a hint moves up slowly, like "fairly sure"
   drawMark = true;
   persist(); showQuiz(); $('#next').focus();
 }
 
 function feedback() {
   const q = run.Q[run.i], c = $('#card'), r = run.res[q.id], ok = r.ok, v = r.pick;
+  const why = q.o && !ok && Array.isArray(q.why) && typeof q.why[v] === 'string' && q.why[v].trim();
   if (q.o) c.querySelectorAll('.opt').forEach(b => { b.disabled = true; const k = +b.dataset.k; b.querySelectorAll('.mk').forEach(m => m.remove());
     if (k === q.a) { b.classList.add('right'); b.insertAdjacentHTML('beforeend', mark(r.sure === false && ok ? 'gs' : 'ok')); }
-    else if (k === v) { b.classList.add('wrong'); b.insertAdjacentHTML('beforeend', mark('no')); } });
+    else if (k === v) { b.classList.add('wrong'); b.insertAdjacentHTML('beforeend', (why ? `<span class="owhy"><b>Why not:</b> ${H(q.why[v])}</span>` : '') + mark('no')); } });
   else { $('#nin').value = v; $('#nin').disabled = true; const cb = c.querySelector('#nf .btn'); if (cb) cb.remove(); }
   const sure = ok && study().sure ? `<div class="sure"><span>How sure were you?</span><span class="seg" role="group" aria-label="How sure were you?"><button data-s="1" aria-pressed="${r.sure === true}">Sure</button><button data-s="0.5" aria-pressed="${r.sure === 0.5}">Fairly sure</button><button data-s="0" aria-pressed="${r.sure === false}">Guessed</button></span></div>` : '';
-  $('#fbw').innerHTML = `<div class="fb"><div class="verdict ${ok ? 'ok' : 'no'}">${ok ? 'Correct' : 'Not quite. The answer is ' + (q.o ? 'ABCD'[q.a] : `<span class="n">${esc(q.num)}</span>`)}</div><div>${H(q.e)}</div><div class="src">${H(q.s)}</div>${sure}${links(q, ok)}${askBtn(q.id)}</div>`;
+  const hinted = Array.isArray(r.hint) && r.hint.length ? `<div class="tml">Hints used before answering: ${r.hint.map(esc).join(', ')}</div>` : '';
+  $('#fbw').innerHTML = `<div class="fb"><div class="verdict ${ok ? 'ok' : 'no'}">${ok ? 'Correct' : 'Not quite. The answer is ' + (q.o ? 'ABCD'[q.a] : `<span class="n">${esc(q.num)}</span>`)}</div><div class="fbe">${H(q.e)}</div><div class="src">${H(q.s)}</div>${hinted}<div class="tml" hidden></div>${sure}${links(q, ok)}${askBtn(q.id)}</div>`;
+  if (study().hints) {
+    // After answering, every term is open: underlined in the explanation, and the rest (from the options) listed.
+    const stem = new Set([...document.querySelectorAll('#card .q .term')].map(b => b.dataset.t)), seen = new Set(stem);
+    const fbw = $('#fbw'); termify(fbw.querySelector('.fbe'), q.unit, seen);
+    const opt = []; if (q.o) q.o.forEach(t => { const d = document.createElement('div'); d.innerHTML = H(t); termify(d, q.unit, seen).forEach(x => opt.push(x)); });
+    const tl = fbw.querySelector('.tml[hidden]');
+    if (opt.length) { tl.innerHTML = `Terms in the options: ${opt.map(t => `<button type="button" class="term" data-t="${esc(t.id)}" aria-expanded="false">${esc(t.term)}</button>`).join(', ')}`; tl.hidden = false; }
+    wireTerms(fbw, q, true); wireTerms($('#card .q'), q, true);
+  }
   $('#fbw').querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
     r.sure = b.dataset.s === '1' ? true : b.dataset.s === '0' ? false : 0.5; Store.update('attempts/' + r.att, { sure: r.sure });
-    if (r.fresh) srsApply(q.id, true, r.sure, r.prev);
+    if (r.fresh) srsApply(q.id, true, r.hint && r.sure === true ? 0.5 : r.sure, r.prev);
     persist();
     $('#mkw').innerHTML = mark(markKind(r, false));
     strip(); feedback(); typeset($('#fbw'));
@@ -1294,6 +1604,7 @@ function summary() {
   const c = $('#card'), n = run.qids.length, right = run.qids.filter(id => run.res[id] && run.res[id].ok).length;
   const miss = run.Q.map((q, k) => [q, k]).filter(([q]) => run.res[q.id] && !run.res[q.id].ok);
   const open = run.Q.map((q, k) => [q, k]).filter(([q]) => !run.res[q.id]);
+  const helped = run.Q.map((q, k) => [q, k]).filter(([q]) => run.res[q.id] && run.res[q.id].ok && run.res[q.id].hint);
   const item = ([q, k]) => `<li><a href="#" class="jump" data-k="${k}">Q${k + 1}</a> <span class="muted">${esc(q.w)}</span><div>${H(q.q)}</div>${links(q, true, false)}</li>`;
   const S = stats(), seen = new Set(); run.Q.forEach(q => (q.concepts || []).forEach(x => seen.add(x)));
   const weak = [...seen].filter(x => S.con[x] && S.con[x].m < 0.8).sort((a, b) => S.con[a].m - S.con[b].m).slice(0, 3).map(x => esc((Store.all('concepts')[x] || {}).name || x));
@@ -1301,8 +1612,9 @@ function summary() {
     <div class="result"><span class="big">${right} / ${n}</span><span class="muted">right</span></div>
     ${weak.length ? `<p class="muted" style="margin:0">Weakest concepts here: ${weak.join(', ')}</p>` : ''}
     ${miss.length ? `<div class="box"><h2>Revisit</h2><ul class="sum">${miss.map(item).join('')}</ul></div>` : ''}
+    ${helped.length ? `<div class="box"><h2>Right with a hint</h2><ul class="sum">${helped.map(item).join('')}</ul></div>` : ''}
     ${open.length ? `<div class="box"><h2>Skipped or not answered</h2><ul class="sum">${open.map(item).join('')}</ul></div>` : ''}
-    ${!miss.length && !open.length ? '<p style="margin:0">Clean sweep.</p>' : ''}
+    ${!miss.length && !open.length && !helped.length ? '<p style="margin:0">Clean sweep.</p>' : ''}
     <div class="qnav"><span><button class="btn out" id="back">${icon('left')}Back to questions</button></span><span><a class="btn" href="${run.unit ? '#/u/' + encodeURIComponent(run.unit) : '#/'}">Done</a></span></div></div>`;
   c.querySelectorAll('.jump').forEach(a => a.onclick = e => { e.preventDefault(); go(+a.dataset.k); });
   $('#back').onclick = () => go(open.length ? open[0][1] : n - 1);
@@ -1362,7 +1674,7 @@ const shortDate = iso => new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia
 
 let ex = null, exTick = null, exPend = null;
 function exStop() { if (exTick) clearInterval(exTick); exTick = null; if (exPend) { exPend(); exPend = null; } }
-function exSave(patch) { Store.update('sittings/' + ex.sid, patch); ex.s = Store.get('sittings/' + ex.sid); }
+function exSave(patch) { if ('ans' in patch) patch.at = new Date().toISOString(); Store.update('sittings/' + ex.sid, patch); ex.s = Store.get('sittings/' + ex.sid); }
 
 function examShell(z, back, sub) {
   return topbar(back) + `<main class="wrap qpage"><div class="qhead u" ${uAttr(unitKey(z.unit))}><h1>${esc(z.title)}</h1><span class="n">${sub}</span></div>`;
@@ -1404,10 +1716,13 @@ function exStart(id, z, Q, back) {
 function exRun(id, z, Q, sid, back) {
   ex = { id, z, Q, sid, s: Store.get('sittings/' + sid) };
   app().innerHTML = examShell(z, back, ex.s.timed ? `Timed · ${ex.s.minutes} min` : 'Untimed') + `
-    <div class="exbar"><span class="timer" id="tmr">${icon('clock')}<span></span></span><span class="prog" id="exprog"></span><span class="sp"></span><button class="btn sm" id="fin">Finish exam</button></div>
-    <nav class="cells big" id="strip" aria-label="Questions"></nav><section id="card" class="sheet"></section></main>
+    <div class="exbar"><span class="timer" id="tmr">${icon('clock')}<span></span></span><span class="prog" id="exprog"></span><span class="sp"></span>${study().hints && fsAll(z.unit).some(f => !f.extra) ? `<button class="btn sm out" id="fsb" aria-expanded="false" aria-controls="fsw">${icon('sigma')}Formula sheet</button>` : ''}<button class="btn sm" id="fin">Finish exam</button></div>
+    <nav class="cells big" id="strip" aria-label="Questions"></nav><section id="card" class="sheet"></section>
+    <aside class="cmenu fsp" id="fsw" aria-label="Formula sheet" hidden></aside></main>
     <dialog class="dlg" id="dlg" aria-labelledby="dlg-t"></dialog>`;
   $('#fin').onclick = exConfirm;
+  if ($('#fsb')) $('main.qpage').classList.add('fsroom');
+  if ($('#fsb')) $('#fsb').onclick = () => exSheet(z.unit, $('#fsw').hidden);
   exStrip(); exCard(); exClock(); exTick = setInterval(exClock, 1000);
 }
 function exClock() {
@@ -1430,6 +1745,7 @@ function exStrip() {
 function exGo(k) { if (exPend) { exPend(); exPend = null; } exSave({ i: Math.max(0, Math.min(k, ex.Q.length - 1)) }); exStrip(); exCard(); window.scrollTo({ top: 0 }); }
 function exCard() {
   const s = ex.s, i = s.i || 0, q = ex.Q[i], c = $('#card'); if (!q) return;
+  if ($('#fsw') && !$('#fsw').hidden) exSheet(ex.z.unit, true); // follow the question you're on
   const a = s.ans[q.id], m = exMarks(ex.z, q.id), rev = (s.rev || []).includes(q.id), last = i === ex.Q.length - 1;
   const body = q.o ? `<div class="opts">${q.o.map((t, k) => `<button class="opt${hasAns(a) && +a === k ? ' picked' : ''}" data-k="${k}" aria-pressed="${hasAns(a) && +a === k}"><span class="k">${'ABCD'[k]}</span><span>${H(t)}</span></button>`).join('')}</div>`
     : q.num != null ? `<div class="numf"><input id="nin" inputmode="decimal" aria-label="Your answer" placeholder="Your answer" autocomplete="off" value="${hasAns(a) ? esc(String(a)) : ''}"></div>`
@@ -1509,7 +1825,12 @@ function exReview(id, z, Q, sid, back) {
   typeset(app());
 }
 
-function examsBody(u) {
+// Latest week a list entry covers, and its expected score from concept mastery (untried concepts count as 0.5).
+function qMeta(qids, S) {
+  const Qs = Store.all('questions'), qs = qids.map(q => Qs[q]).filter(Boolean), cs = [...new Set(qs.flatMap(q => q.concepts || []))];
+  return { week: Math.max(0, ...qs.map(q => wkNum(q.week || q.w) || 0)), est: cs.length ? cs.reduce((t, c) => t + (S.con[c] ? S.con[c].m : 0.5), 0) / cs.length : 0.5 };
+}
+function examsBody(u, S) {
   const xs = examsOf(u.key);
   if (!xs.length) return `<p class="empty">No practice exams yet. ${SOLO ? IMPORT_HINT : 'Tap <b>New</b> above and pick <b>Practice exam</b>.'}</p>`;
   return qlist(u.key, 'exams', xs.map(([id, z]) => {
@@ -1517,7 +1838,8 @@ function examsBody(u) {
     const best = done.map(([, s]) => exScore(z, s)).sort((a, b) => b.got - a.got)[0];
     const label = live ? 'Continue' : done.length ? 'Retake' : 'Start';
     const tags = (live ? '<span class="tag live">In progress</span>' : '') + (best ? `<span class="tag">Best ${best.got}/${best.total}</span><span class="tag">${done.length} ${done.length === 1 ? 'attempt' : 'attempts'}</span>` : '');
-    return [id, z, { text: `<h3>${esc(z.title)}</h3><div class="meta"><span class="n">${z.qids.length}</span> questions · <span class="n">${exTotal(z)}</span> marks · <span class="n">${z.minutes || 60}</span> min</div>`, tags,
+    const qm = qMeta(z.qids, S), m = { created: z.created, week: qm.week, done: done.length ? 1 : live ? 0.5 : 0, last: (ss[0] || [, {}])[1].started || '', est: best && best.total ? best.got / best.total : qm.est };
+    return [id, z, { m, text: `<h3>${esc(z.title)}</h3><div class="meta"><span class="n">${z.qids.length}</span> questions · <span class="n">${exTotal(z)}</span> marks · <span class="n">${z.minutes || 60}</span> min</div>`, tags,
       btn: `<a class="btn ${done.length && !live ? 'out ' : ''}sm" href="#/exam/${encodeURIComponent(id)}" aria-label="${label} ${esc(z.title)}">${label}${icon('right')}</a>` }, ''];
   }));
 }
@@ -1530,12 +1852,13 @@ function lastQuiz() {
   Object.values(Store.all('attempts')).forEach(a => { if (Zs[a.quiz] && (!best || a.at > best.at)) best = a; });
   if (!best) return null;
   const z = Zs[best.quiz], lat = latestIn(best.quiz), d = z.qids.filter(q => lat[q]).length;
-  return d < z.qids.length ? { id: best.quiz, z, d } : null;
+  return d < z.qids.length ? { id: best.quiz, z, d, at: best.at } : null;
 }
-function sitsOf2() { // the most recent unfinished practice exam, if any
-  const Zs = Store.all('exams'), live = Object.values(Store.all('sittings')).filter(s => s && !s.done && Zs[s.exam]).sort((a, b) => a.started < b.started ? 1 : -1)[0];
+function sitsOf2() { // the most recently answered unfinished practice exam; one opened but never answered doesn't count
+  const Zs = Store.all('exams'), ans = s => Zs[s.exam].qids.filter(q => hasAns((s.ans || {})[q])).length;
+  const live = Object.values(Store.all('sittings')).filter(s => s && !s.done && Zs[s.exam] && ans(s)).sort((a, b) => (a.at || a.started) < (b.at || b.started) ? 1 : -1)[0];
   if (!live) return null; const z = Zs[live.exam];
-  return { id: live.exam, z, n: z.qids.length, d: z.qids.filter(q => hasAns((live.ans || {})[q])).length };
+  return { id: live.exam, z, n: z.qids.length, d: ans(live), at: live.at || live.started };
 }
 function showHome() {
   clearSessions();
@@ -1545,7 +1868,8 @@ function showHome() {
   const date = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Melbourne', weekday: 'long', day: 'numeric', month: 'long' }).format(now);
   let hero = '';
   if (nu) {
-    const e = examParts(nu), lq = lastQuiz(), lx = sitsOf2();
+    const e = examParts(nu); let lq = lastQuiz(), lx = sitsOf2();
+    if (lq && lx) lq.at > lx.at ? (lx = null) : (lq = null); // continue whichever was touched last
     const big = e && e.days > 0 ? `<div class="big"><b>${e.days}</b><span>${e.days === 1 ? 'day' : 'days'} to go</span></div>` : `<div class="big"><span>${esc(daysTxt(e, nu))}</span></div>`;
     hero = `<section class="hero u" ${uAttr(nu.key)} aria-label="Next exam">
       <div><p class="k">${e && e.days >= 0 ? (e.test ? 'Next test' : 'Next exam') : 'Up next'} · ${esc(nu.unit)}</p>${big}<p class="when">${e ? esc(e.when) + ' · ' : ''}${esc(nu.name || nu.unit)}</p></div>
@@ -1598,21 +1922,23 @@ function showUnit(key, tab, view) {
       <a href="#/u/${K}/concepts"${cur('progress')}>${icon('bars')}Concepts<span class="ct">${x.tried}/${x.cs.length}</span></a>
       <a href="#/u/${K}/progress"${cur('content')}>${icon('doc')}Progress<span class="ct" id="ctab">${cc.done}/${cc.n}</span></a>
       <a href="#/u/${K}/exams"${cur('exams')}>${icon('exam')}Exams<span class="ct">${nEx}</span></a></nav></section>`;
-  const body = tab === 'progress' ? conceptsBar(u, x, S, view) + (view === 'mistakes' ? mistakesBody(u, S) : progressBody(u, x, S)) : tab === 'content' ? contentBody(u) : tab === 'exams' ? examsBody(u) : quizzesBody(u, x);
+  const body = tab === 'progress' ? conceptsBar(u, x, S, view) + (view === 'mistakes' ? mistakesBody(u, S) : progressBody(u, x, S)) : tab === 'content' ? contentBody(u) : tab === 'exams' ? examsBody(u, S) : quizzesBody(u, x, S);
   app().innerHTML = topbar({ href: '#/', label: 'All units' }) + `<main class="wrap">${head}<div class="upage">${reqsBox(key)}${body}</div></main>`;
   if ($('#newb')) $('#newb').onclick = () => openNew(key, SOLO ? 'import' : ''); wireReqs();
   if (tab === 'progress') { if (view === 'mistakes') wireMistakes(key); else wireWeeks(key);
     document.querySelectorAll('[data-cv]').forEach(b => b.onclick = () => { location.hash = '#/u/' + K + (b.dataset.cv === 'mistakes' ? '/mistakes' : '/concepts'); }); }
   if (tab === 'content') wireContent(key);
 }
-function quizzesBody(u, x) {
+function quizzesBody(u, x, S) {
   if (!x.quizzes.length) return `<p class="empty">No quizzes yet. ${SOLO ? IMPORT_HINT : 'Tap <b>New</b> above to make one from your notes.'}</p>`;
-  return qlist(u.key, 'quizzes', x.quizzes.sort((a, b) => a[1].created < b[1].created ? 1 : -1).map(([id, z]) => {
+  return qlist(u.key, 'quizzes', x.quizzes.map(([id, z]) => {
     const lat = latestIn(id), pr = Store.get('progress/' + id) || {}, sk = new Set(pr.skipped || []);
     const d = z.qids.filter(q => lat[q]), right = d.filter(q => lat[q].ok).length;
     const label = !d.length ? 'Start' : d.length >= z.qids.length ? 'Review' : 'Continue';
     const meta = d.length ? `<span class="n">${d.length} of ${z.qids.length}</span> answered · <span class="n">${right}</span> right` : `<span class="n">${z.qids.length}</span> questions`;
-    return [id, z, { text: `<h3>${esc(z.title)}</h3><div class="meta">${meta}</div>`,
+    const qm = qMeta(z.qids, S), m = { created: z.created, week: qm.week, done: z.qids.length ? d.length / z.qids.length : 0,
+      last: d.reduce((t, q) => lat[q].at > t ? lat[q].at : t, ''), est: d.length ? right / d.length : qm.est };
+    return [id, z, { m, text: `<h3>${esc(z.title)}</h3><div class="meta">${meta}</div>`,
       btn: `<a class="btn ${d.length >= z.qids.length ? 'out ' : ''}sm" href="#/quiz/${encodeURIComponent(id)}" aria-label="${label} ${esc(z.title)}">${label}${icon('right')}</a>` },
       `<div class="cells" aria-hidden="true">${z.qids.map(q => `<i class="cell">${mark(markKind(lat[q], sk.has(q)))}</i>`).join('')}</div>`];
   }));
@@ -1640,8 +1966,8 @@ function progressBody(u, x, S) {
     <div class="weeks">${blocks}</div>`;
 }
 // ---------- mistake log ----------
-// A question lands here once any attempt was wrong, guessed or only fairly sure. It stays "to fix" while its latest attempt is one of those.
-const isMiss = a => !a.ok || a.sure === false || a.sure === 0.5;
+// A question lands here once any attempt was wrong, guessed, only fairly sure or right only with a hint. It stays "to fix" while its latest attempt is one of those.
+const isMiss = a => !a.ok || a.sure === false || a.sure === 0.5 || !!a.hint;
 function mistakesOf(key, S) {
   const Qs = Store.all('questions'), out = [];
   Object.entries(S.byQ).forEach(([id, atts]) => {
@@ -1664,7 +1990,7 @@ function conceptsBar(u, x, S, view) {
 }
 function mistYours(m) {
   const q = m.q, a = m.a, v = a.pick, blank = v == null || (typeof v === 'number' && isNaN(v));
-  const how = a.ok ? (a.sure === false ? 'Right, but you guessed.' : 'Right, but only fairly sure.') : '';
+  const how = a.ok ? (a.sure === false ? 'Right, but you guessed.' : a.sure === 0.5 ? 'Right, but only fairly sure.' : `Right, with a hint (${(Array.isArray(a.hint) ? a.hint : ['Formulas']).map(esc).join(', ')}).`) : '';
   if (q.o) return `${how ? `<p class="yours">${how}</p>` : blank ? '<p class="yours">You left this blank.</p>' : ''}<div class="opts">${q.o.map((t, j) => j === q.a || (!blank && +v === j) ? `<button class="opt${j === q.a ? ' right' : ' wrong'}" disabled><span class="k">${'ABCD'[j]}</span><span>${H(t)}</span>${mark(j === q.a ? (a.ok ? 'gs' : 'ok') : 'no')}</button>` : '').join('')}</div>`;
   if (q.num != null) return `<p class="yours">Your answer: <b class="n">${blank ? 'blank' : esc(String(v))}</b> · Correct: <b class="n">${esc(q.num)}</b>${how ? ' · ' + how : ''}</p>`;
   const sit = Object.values(Store.all('sittings')).find(s => s.selfAtt && s.selfAtt[q.id] === a.id), typed = sit && sit.ans && sit.ans[q.id];
@@ -1893,6 +2219,11 @@ function render() {
   window.addEventListener('hashchange', render);
   render();
   if (window.MathJax && MathJax.startup && MathJax.startup.promise) MathJax.startup.promise.then(() => typeset(app()));
+  // Maths health, so Claude can check rendering on the live hub: which MathJax ran, why it fell back, any raw TeX left.
+  const mjHealth = () => { try { Store.set('prefs/mj', { v: (window.MathJax && MathJax.version) || null, fallback: window.mjWhy || null, raw: rawTex(document.body), mj: document.querySelectorAll('mjx-container').length, log: (window.mjLog || []).slice(), route: location.hash || '#/', build: typeof BUILD !== 'undefined' ? BUILD : null, ua: navigator.userAgent.slice(0, 120), at: new Date().toISOString() }); } catch (e) {} };
+  setTimeout(mjHealth, 12000);
+  window.addEventListener('mj-ready', () => setTimeout(mjHealth, 4000));
+  let mjT; window.addEventListener('hashchange', () => { clearTimeout(mjT); mjT = setTimeout(mjHealth, 5000); });
 })();
 
 // ---------- Claude inside the hub: make quizzes and exams, ask about a question, queue requests for chat ----------
@@ -1960,7 +2291,7 @@ let mk = null, mkCtl = null;
 function mkDlg() { let d = $('#mkd'); if (!d) { document.body.insertAdjacentHTML('beforeend', '<dialog class="dlg mkd" id="mkd" aria-labelledby="mkd-t"></dialog>'); d = $('#mkd'); d.addEventListener('close', () => { if (mkCtl) mkCtl.abort(); }); } return d; }
 function openNew(key, kind) {
   const u = unitList().find(x => x.key === key); if (!u) return;
-  mk = { key, unit: u.unit, kind: kind || 'quiz', weeks: new Set(), n: 10, min: 45, focus: '', busy: false, msg: '' };
+  mk = { key, unit: u.unit, kind: kind || 'quiz', purpose: 'review', weeks: new Set(), n: 10, min: 45, focus: '', busy: false, msg: '' };
   const d = mkDlg(); drawNew(); d.showModal();
 }
 const kindSeg = o => SOLO ? '' : `<div class="mkrow"><span class="seg" role="group" aria-label="kind">${[['quiz', 'Quiz'], ['exam', 'Practice exam'], ['import', 'Import']].map(([v, l]) => `<button type="button" data-kind="${v}" aria-pressed="${v === o.kind}">${l}</button>`).join('')}</span></div>`;
@@ -1968,7 +2299,7 @@ const kindSeg = o => SOLO ? '' : `<div class="mkrow"><span class="seg" role="gro
 function drawImport() {
   const d = mkDlg(), o = mk;
   d.innerHTML = `<form method="dialog" class="mkf"><h2 id="mkd-t">${SOLO ? 'Import a quiz pack' : `New for ${esc(o.unit)}`}</h2>${kindSeg(o)}
-    <p class="small">A quiz pack is a .json file of quizzes and practice exams, exported from another Study Hub or made with the ma-study skills. Importing one again updates it.</p>
+    <p class="small">A quiz pack is a .json file of quizzes and practice exams, exported from another Study Sauce or made with the study skills. Importing one again updates it.</p>
     <div id="mkst" class="mkst" role="status">${o.msg}</div>
     <input type="file" id="mkfile" accept=".json,application/json" hidden>
     <div class="qnav">${o.done ? `<button type="button" class="btn" id="mkx">Done</button>`
@@ -1987,9 +2318,11 @@ function drawNew() {
   if (mk.kind === 'import') return drawImport();
   const d = mkDlg(), o = mk, ws = weeksOf(o.key), quiz = o.kind === 'quiz', canAsk = SAMPLE !== null;
   const seg = (name, opts, cur) => `<span class="seg" role="group" aria-label="${name}">${opts.map(([v, l]) => `<button type="button" data-${name}="${v}" aria-pressed="${String(v) === String(cur)}">${l}</button>`).join('')}</span>`;
+  const lec = quiz && o.purpose === 'lecture';
   d.innerHTML = `<form method="dialog" class="mkf"><h2 id="mkd-t">New for ${esc(o.unit)}</h2>
     ${kindSeg(o)}
-    ${ws.length ? `<fieldset class="mkrow"><legend>Weeks <small>${o.weeks.size ? '' : quiz ? '· none picked = your weak spots' : '· none picked = whole unit'}</small></legend>
+    ${quiz ? `<div class="mkrow"><span class="lbl">Purpose <small>· ${PURPOSE_HINT[o.purpose]}</small></span>${seg('purpose', [['lecture', 'Lecture'], ['studio', 'Studio'], ['review', 'Review']], o.purpose)}</div>` : ''}
+    ${ws.length ? `<fieldset class="mkrow"><legend>Weeks <small>${o.weeks.size ? '' : lec ? '· none picked = latest week' : quiz ? '· none picked = your weak spots' : '· none picked = whole unit'}</small></legend>
       <div class="wkchips">${ws.map(w => hasSrc(o.key, w) ? `<button type="button" class="wchip" data-wk="${w}" aria-pressed="${o.weeks.has(w)}">${w}</button>` : `<button type="button" class="wchip" disabled title="No slides or lecture transcripts stored for week ${w} yet">${w}</button>`).join('')}</div></fieldset>` : ''}
     <div class="mkrow"><span class="lbl">${quiz ? 'Questions' : 'Length'}</span>${quiz ? seg('n', [[5, '5'], [10, '10'], [15, '15']], o.n) : seg('min', [[30, '30 min'], [45, '45 min'], [60, '60 min']], o.min)}</div>
     <label class="mkrow col"><span class="lbl">Anything specific? <small>optional</small></span><textarea id="mkfocus" rows="2" placeholder="${quiz ? 'e.g. more maths, LSTM gates, harder questions' : 'e.g. like the real exam, focus on backprop'}">${esc(o.focus)}</textarea></label>
@@ -1999,6 +2332,7 @@ function drawNew() {
     ${!o.busy && canAsk ? `<button type="button" class="linkb" id="mkq">Or send it to Claude in chat instead</button>` : ''}
     ${!canAsk && !o.busy ? '<p class="muted small">It will be waiting next time you open Claude chat.</p>' : ''}</form>`;
   d.querySelectorAll('[data-kind]').forEach(b => b.onclick = () => { o.kind = b.dataset.kind; o.focus = $('#mkfocus').value; o.msg = ''; drawNew(); });
+  d.querySelectorAll('[data-purpose]').forEach(b => b.onclick = () => { o.purpose = b.dataset.purpose; o.focus = $('#mkfocus').value; drawNew(); });
   d.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { o.n = +b.dataset.n; o.focus = $('#mkfocus').value; drawNew(); });
   d.querySelectorAll('[data-min]').forEach(b => b.onclick = () => { o.min = +b.dataset.min; o.focus = $('#mkfocus').value; drawNew(); });
   d.querySelectorAll('[data-wk]').forEach(b => b.onclick = () => { const w = +b.dataset.wk; o.weeks.has(w) ? o.weeks.delete(w) : o.weeks.add(w); o.focus = $('#mkfocus').value; drawNew(); });
@@ -2010,10 +2344,10 @@ function drawNew() {
 }
 function queueReq() {
   const o = mk, wk = [...o.weeks].sort((a, b) => a - b);
-  Store.add('requests', { unit: o.unit, kind: o.kind, weeks: wk, n: o.kind === 'quiz' ? o.n : null, minutes: o.kind === 'exam' ? o.min : null, focus: o.focus, at: new Date().toISOString(), status: 'queued' });
+  Store.add('requests', { unit: o.unit, kind: o.kind, purpose: o.kind === 'quiz' ? o.purpose : null, weeks: wk, n: o.kind === 'quiz' ? o.n : null, minutes: o.kind === 'exam' ? o.min : null, focus: o.focus, at: new Date().toISOString(), status: 'queued' });
   mkDlg().close(); render();
 }
-const reqLabel = r => `${r.kind === 'exam' ? `Practice exam, ${r.minutes} min` : `Quiz, ${r.n} questions`}${r.weeks && r.weeks.length ? ` · week${r.weeks.length > 1 ? 's' : ''} ${r.weeks.join(', ')}` : r.kind === 'exam' ? ' · whole unit' : ' · weak spots'}${r.focus ? ` · “${r.focus}”` : ''}`;
+const reqLabel = r => `${r.kind === 'exam' ? `Practice exam, ${r.minutes} min` : `${TAGL[r.purpose] ? TAGL[r.purpose] + ' quiz' : 'Quiz'}, ${r.n} questions`}${r.weeks && r.weeks.length ? ` · week${r.weeks.length > 1 ? 's' : ''} ${r.weeks.join(', ')}` : r.kind === 'exam' ? ' · whole unit' : r.purpose === 'lecture' ? ' · latest week' : ' · weak spots'}${r.focus ? ` · “${r.focus}”` : ''}`;
 function reqsBox(key) {
   const rs = Object.entries(Store.all('requests')).filter(([, r]) => r && r.status === 'queued' && unitKey(r.unit) === key).sort((a, b) => a[1].at < b[1].at ? -1 : 1);
   if (!rs.length) return '';
@@ -2021,20 +2355,43 @@ function reqsBox(key) {
 }
 function wireReqs() { document.querySelectorAll('[data-rq]').forEach(b => b.onclick = () => { Store.update('requests/' + b.dataset.rq, { status: 'cancelled' }); render(); }); }
 
+// What a quiz is for. Notes mark where each point came from with a tag at the end of the line or its section heading:
+// [lecture] [studio] [worksheet] [workshop] [Ed] [reading] [extra], plus "· lectured WN" when it is taught in another week's lectures.
+const PURPOSE_HINT = { lecture: 'just that week’s lectures', studio: 'worked problems, exam style', review: 'all of it, weak spots first' };
+const PURPOSE_BRIEF = {
+  lecture: 'PURPOSE: the student has just watched these weeks’ lectures and wants to check they caught the main ideas. Ask only about points the notes tag [lecture] (with no "lectured W" note pointing at a different week). Test definitions, why things work, what an equation’s parts mean and one-step calculations straight from the slides. No multi-step worked problems, nothing from studios, worksheets, workshops, Ed or readings, and nothing from other weeks.',
+  studio: 'PURPOSE: practice like the studio worksheets and the exam. Write multi-step worked problems: shapes, parameter counts, probabilities, losses, small hand calculations on a new example, and “what happens if” comparisons. Mostly numeric questions or multiple choice on a computed result. Use the worked examples in the studio and worksheet sections as models but change the numbers. Any source tag is fair game.',
+  review: 'PURPOSE: mixed revision. Combine concept and calculation questions from every source tag.'
+};
+const TAG_RE = /\[(lecture|studio|worksheet|workshop|Ed|reading|extra)(?:\s*·\s*lectured W(\d+))?\]\s*$/i;
+// After a lecture, keep the title and overview, headings, and only the lines tagged [lecture] for this week. Untagged (older) notes pass through whole.
+function notesFor(text, purpose, week) {
+  const t = String(text || ''); if (purpose !== 'lecture' || !t.split('\n').some(l => TAG_RE.test(l.trim()))) return t;
+  let sec = null, seen = false; const out = [];
+  t.split('\n').forEach(l => {
+    const s = l.trim(), m = TAG_RE.exec(s);
+    if (/^#{2,}\s/.test(s)) { seen = true; sec = m ? m : null; if (!m || m[1].toLowerCase() === 'lecture') out.push(l); return; }
+    if (!seen) { if (!/^\|/.test(s)) out.push(l); return; } // title and overview, not the resources table
+    if (!/^([-*]|\d+\.)\s/.test(s)) return;
+    const tag = m || sec; if (tag && tag[1].toLowerCase() === 'lecture' && (!tag[2] || +tag[2] === +week)) out.push(l);
+  });
+  return out.join('\n');
+}
 function genPrompt(o) {
-  const u = unitList().find(x => x.key === o.key) || {}, quiz = o.kind === 'quiz', S = stats();
+  const u = unitList().find(x => x.key === o.key) || {}, quiz = o.kind === 'quiz', S = stats(), P = quiz ? o.purpose || 'review' : 'exam';
   let wk = [...o.weeks].sort((a, b) => a - b);
-  if (!wk.length) wk = quiz ? weakWeeks(o.key, 3) : srcWeeks(o.key);
+  if (!wk.length) wk = P === 'lecture' ? srcWeeks(o.key).slice(-1) : quiz ? weakWeeks(o.key, 3) : srcWeeks(o.key);
   const inWk = w => !wk.length || wk.includes(wkNum(w));
   const cons = Object.entries(Store.all('concepts')).filter(([, c]) => unitKey(c.unit) === o.key && inWk(c.week));
   const per = quiz ? 14000 : Math.max(5000, Math.floor(150000 / Math.max(1, wk.length)));
-  const notes = notesOf(o.key).filter(n => inWk(n.week)).map(n => `### Week ${n.week}: ${n.title || ''}\n${String(n.text || '').slice(0, per)}`).join('\n\n');
+  const notes = notesOf(o.key).filter(n => inWk(n.week)).map(n => `### Week ${n.week}: ${n.title || ''}\n${notesFor(n.text, P, n.week).slice(0, per)}`).join('\n\n');
   const seen = Object.values(Store.all('questions')).filter(q => unitKey(q.unit) === o.key && inWk(q.week)).slice(-60).map(q => '- ' + stripTags(q.q).slice(0, 120)).join('\n');
   const conLines = cons.map(([id, c]) => `- ${id} | week ${wkNum(c.week)} | ${c.name} | ${S.con[id] ? Math.round(S.con[id].m * 100) + '% mastery' : 'not tried'}`).join('\n');
   const marks = quiz ? '' : `\nIt is a ${o.min}-minute practice exam worth about ${o.min} marks in total (roughly 1 mark per minute). About a third of the marks are short multiple-choice or numeric questions (1–2 marks each); the rest are written worked problems (3–7 marks each) with a model answer and a marking guide. Order it like a real paper: short questions first.`;
-  return `You are writing ${quiz ? `a ${o.n}-question revision quiz` : 'a practice exam'} for a university student studying ${u.unit}${u.name ? ' (' + u.name + ')' : ''}.
-Weeks covered: ${wk.length ? wk.join(', ') : 'all'}.${o.weeks.size ? '' : quiz ? ' These weeks hold the student’s weakest concepts; weight questions toward concepts with low mastery or never tried.' : ''}
-${o.focus ? `The student asked for: ${o.focus}\n` : ''}${marks}
+  return `You are writing ${quiz ? `a ${o.n}-question ${P === 'lecture' ? 'after-lecture check' : P === 'studio' ? 'worked-problem quiz' : 'revision quiz'}` : 'a practice exam'} for a university student studying ${u.unit}${u.name ? ' (' + u.name + ')' : ''}.
+Weeks covered: ${wk.length ? wk.join(', ') : 'all'}.${o.weeks.size || P === 'lecture' ? '' : quiz ? ' These weeks hold the student’s weakest concepts; weight questions toward concepts with low mastery or never tried.' : ''}
+${quiz ? PURPOSE_BRIEF[P] + '\n' : ''}${o.focus ? `The student asked for: ${o.focus}\n` : ''}${marks}
+Each line of the notes may end with a source tag: [lecture] lecture slides or video, [studio], [worksheet], [workshop], [Ed] staff forum answer, [reading], [extra] not in the course material; a tag on a section heading covers its lines. "lectured WN" means the idea is taught in week N’s lectures. A question’s "week" is the week its idea is lectured, so use N from "lectured WN" when present. Avoid [extra] points.
 Base every question on the course notes below. Test understanding and calculation, not trivia about dates or resources. Wrong options must be plausible mistakes a student would make, and as long, specific and confident as the right one: never let the right answer be the longest, most detailed or most hedged option. A student who only compares option lengths must not be able to guess. Do not repeat the questions the student already has.
 
 Existing concepts for these weeks (id | week | name | mastery):
@@ -2161,7 +2518,7 @@ function saveGen(o, d) {
   });
   if (!qids.length) throw new Error('None of Claude’s questions could be matched to a slide page and video time. Try again.');
   const title = String(d.title || (quiz ? 'Revision quiz' : 'Practice exam')).slice(0, 80), created = today();
-  if (quiz) Store.set('quizzes/' + base, { unit: U, title, created, qids, gen: true });
+  if (quiz) Store.set('quizzes/' + base, { unit: U, title, created, qids, gen: true, purpose: o.purpose || 'review' });
   else Store.set('exams/' + base, { unit: U, title, created, minutes: o.min, qids, marks, intro: 'Written by Claude in the hub from your notes.', gen: true });
   return base;
 }
@@ -2173,7 +2530,7 @@ function askCtx(q, ctx) {
   const u = unitList().find(x => x.key === unitKey(q.unit)) || {};
   const note = notesOf(unitKey(q.unit)).find(n => +n.week === wkNum(q.week));
   let ans = '';
-  if (q.o) ans = `Options:\n${q.o.map((t, k) => `${'ABCD'[k]}. ${stripTags(t)}`).join('\n')}\nCorrect: ${'ABCD'[q.a]}\n`;
+  if (q.o) ans = `Options:\n${q.o.map((t, k) => `${'ABCD'[k]}. ${stripTags(t)}${Array.isArray(q.why) && q.why[k] ? ` (why it's wrong: ${stripTags(q.why[k])})` : ''}`).join('\n')}\nCorrect: ${'ABCD'[q.a]}\n`;
   else if (q.num != null) ans = `Correct answer: ${q.num}\n`;
   else if (q.ans) ans = `Model answer: ${stripTags(q.ans)}\n`;
   const mine = ctx.pick == null || ctx.pick === '' ? 'No answer given.' : q.o ? `Picked ${'ABCD'[+ctx.pick]} (${ctx.ok ? 'right' : 'wrong'})` : `Answered: ${String(ctx.pick).slice(0, 1500)}${ctx.ok == null ? '' : ctx.ok ? ' (right)' : ' (wrong)'}`;
@@ -2189,7 +2546,7 @@ ${note ? `\nTheir course notes for week ${note.week} (excerpt):\n${String(note.t
 function drawAsk(w, q, ctx) {
   const st = ASK[q.id] = ASK[q.id] || { turns: [], open: false }, wrong = ctx.ok === false;
   if (!st.open) { w.innerHTML = `<button class="btn out sm askb">${icon('spark')}Ask Claude about this</button>`; w.querySelector('.askb').onclick = () => { st.open = true; drawAsk(w, q, ctx); w.querySelector('input') && w.querySelector('input').focus(); }; return; }
-  const chips = [wrong ? 'Why is my answer wrong?' : 'Why is this the answer?', 'Explain it more simply', 'Give me a similar one to try'];
+  const chips = (wrong ? ['Why is my answer wrong?', `Why is ${q.o ? 'ABCD'[q.a] : 'that'} the answer?`] : ['Why is this the answer?']).concat(['Explain the key terms', 'Give me a similar one to try']);
   w.innerHTML = `<div class="ask">${st.turns.map(t => `<div class="msg ${t.role === 'user' ? 'me' : 'cl'}">${t.role === 'user' ? esc(t.content) : md(t.content)}</div>`).join('')}
     ${st.busy ? `<div class="msg cl live"><span class="thinking">Thinking</span></div>` : ''}${st.err ? `<p class="aerr">${esc(st.err)}</p>` : ''}
     ${st.turns.length || st.busy ? '' : `<div class="chips">${chips.map(c => `<button class="chip2">${c}</button>`).join('')}</div>`}
@@ -2225,16 +2582,50 @@ function wireAsk(root, getCtx) {
 }
 sampleReady.then(s => { if (s === null) document.querySelectorAll('[data-ask]').forEach(w => w.remove()); });
 
+// ----- Hint: a nudge toward the first step, never the answer. The question's own `hint` if it has one, else Claude writes one once and hints/<qid> keeps it. -----
+const HINT = {}; // qid -> { busy, err }
+const hintOk = q => study().hints && (!!q.hint || !!(Store.get('hints/' + q.id) || {}).text || (!SOLO && SAMPLE !== null));
+function hintBox(q) {
+  const w = $('#hintw'); if (!w) return;
+  const st = HINT[q.id] = HINT[q.id] || {};
+  w.hidden = !hintOpen; if (!hintOpen) { w.innerHTML = ''; st.err = ''; return; } // closing clears an error, so opening again retries
+  const saved = (Store.get('hints/' + q.id) || {}).text;
+  const inner = q.hint ? H(q.hint) : saved ? md(saved) : st.busy ? '<span class="thinking">Thinking</span>' : st.err ? `<p class="aerr">${esc(st.err)}</p>` : '';
+  w.innerHTML = `<div class="pal-h"><p>Hint</p><button class="x" id="hintx" aria-label="Close hint">${icon('x')}</button></div><div class="fsp-b" aria-live="polite">${inner}</div>`;
+  $('#hintx').onclick = () => { hintOpen = false; hintBox(q); const b = $('#hintb'); if (b) { b.setAttribute('aria-expanded', 'false'); b.focus(); } };
+  if (!q.hint && !saved && !st.busy && !st.err) getHint(q); else typeset(w);
+}
+async function getHint(q) {
+  const st = HINT[q.id]; st.busy = true; st.err = ''; hintBox(q);
+  const sample = SAMPLE === undefined ? await sampleReady : SAMPLE;
+  if (!sample) { st.busy = false; st.err = 'Claude isn’t switched on for this page.'; return hintBox(q); }
+  const u = unitList().find(x => x.key === unitKey(q.unit)) || {}, note = notesOf(unitKey(q.unit)).find(n => +n.week === wkNum(q.week));
+  const ans = q.o ? `Options:\n${q.o.map((t, k) => `${'ABCD'[k]}. ${stripTags(t)}`).join('\n')}\nCorrect: ${'ABCD'[q.a]}` : q.num != null ? `Correct answer: ${q.num}` : q.ans ? `Model answer: ${stripTags(q.ans)}` : '';
+  const prompt = `Write ONE hint for a university student stuck on this ${u.unit || q.unit} practice question. One or two short sentences that point them at the right idea or the first step to take.
+Never give the answer, the correct option letter, or a final number, and don't rule options in or out by letter. Maths with \\( … \\) only, never $. Plain text, no heading, no preamble.
+
+QUESTION: ${stripTags(q.q)}
+${ans}
+Explanation shown after answering (for you, don't quote it): ${stripTags(q.e) || '(none)'}
+${note ? `\nCourse notes for week ${note.week} (excerpt):\n${String(note.text || '').slice(0, 6000)}` : ''}`;
+  try { const { text } = await sample(prompt, { cache: false }); if (text && text.trim()) Store.set('hints/' + q.id, { qid: q.id, text: text.trim(), at: new Date().toISOString() }); else st.err = 'No hint came back. Try again later.'; }
+  catch (e) { st.err = sErr(e); }
+  st.busy = false;
+  if (hintQ === q.id) hintBox(q);
+}
+sampleReady.then(s => { if (s !== null) return; const b = $('#hintb'), q = typeof run !== 'undefined' && run && run.Q && run.Q[run.i];
+  if (b && q && !q.hint && !(Store.get('hints/' + q.id) || {}).text) { b.remove(); const w = $('#hintw'); if (w) w.remove(); } });
+
 // ---------- report a problem ----------
 // Reports go to the `reports` collection. Claude files queued ones as GitHub issues on the ma-study repo.
-const HUB_VERSION = '1.6.0';
+const HUB_VERSION = '1.7.0';
 const BUILD = HUB_VERSION;
 // Home-page notices: a newer ma-study release (Claude writes prefs/app when it checks GitHub) and a one-time pin tip.
 const verGt = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
 function notices() {
   const v = Store.get('prefs/app') || {}, out = [];
-  if (v.latest && verGt(v.latest, HUB_VERSION)) out.push(`<div class="notice" role="status"><p><b>Study Hub ${esc(v.latest)} is out.</b> Ask Claude to “update my Study Hub”.${/^https:\/\/github\.com\//.test(v.url || '') ? ` <a href="${esc(v.url)}" target="_blank" rel="noopener">What’s new</a>` : ''}</p></div>`);
-  if (!SOLO && !(PREFS.tips && PREFS.tips.pin)) out.push(`<div class="notice"><p><b>Tip:</b> pin this page so it’s always in your Claude sidebar. Ask Claude to “pin my Study Hub”.</p><button class="btn out sm" id="pintip">Got it</button></div>`);
+  if (v.latest && verGt(v.latest, HUB_VERSION)) out.push(`<div class="notice" role="status"><p><b>Study Sauce ${esc(v.latest)} is out.</b> Ask Claude to “update my Study Sauce”.${/^https:\/\/github\.com\//.test(v.url || '') ? ` <a href="${esc(v.url)}" target="_blank" rel="noopener">What’s new</a>` : ''}</p></div>`);
+  if (!SOLO && !(PREFS.tips && PREFS.tips.pin)) out.push(`<div class="notice"><p><b>Tip:</b> pin this page so it’s always in your Claude sidebar. Ask Claude to “pin my Study Sauce”.</p><button class="btn out sm" id="pintip">Got it</button></div>`);
   return out.join('');
 }
 document.addEventListener('click', e => { if (e.target.closest('#pintip')) { PREFS.tips = Object.assign({}, PREFS.tips, { pin: 1 }); savePrefs(); const n = e.target.closest('.notice'); if (n) n.remove(); } });
