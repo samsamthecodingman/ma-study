@@ -7,7 +7,7 @@ Prints the issue URL. The report JSON is the `reports/<id>` doc from the hub db.
 import json, subprocess, sys
 
 args = [a for a in sys.argv[1:] if not a.startswith('--')]
-repo = next((sys.argv[i + 1] for i, a in enumerate(sys.argv) if a == '--repo'), 'samsamthecodingman/ma-study')
+repo = next((sys.argv[i + 1] for i, a in enumerate(sys.argv) if a == '--repo'), 'samsamthecodingman/study-sauce')
 rid, path = args[0], args[1]
 r = json.load(open(path))
 

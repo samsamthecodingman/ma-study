@@ -7,9 +7,9 @@ Exam-study skills for Claude Code. Made by Sam Roberts with Claude.
 
 In Study Sauce you can also make new quizzes and practice exams, ask Claude about any question, and report a problem with one button.
 
-[![Launch video preview: answering a quiz question in Study Sauce. Click to watch the full 97-second video](docs/launch-preview.gif)](https://cdn.jsdelivr.net/gh/samsamthecodingman/ma-study@main/docs/study-sauce-launch.mp4)
+[![Launch video preview: answering a quiz question in Study Sauce. Click to watch the full 97-second video](docs/launch-preview.gif)](https://cdn.jsdelivr.net/gh/samsamthecodingman/study-sauce@main/docs/study-sauce-launch.mp4)
 
-▶️ [Watch the launch video](https://cdn.jsdelivr.net/gh/samsamthecodingman/ma-study@main/docs/study-sauce-launch.mp4) (97 s, with sound)
+▶️ [Watch the launch video](https://cdn.jsdelivr.net/gh/samsamthecodingman/study-sauce@main/docs/study-sauce-launch.mp4) (97 s, with sound)
 
 ![Study Sauce home: days to your next exam, weak-spot revision, and your units](docs/home.png)
 
@@ -21,8 +21,8 @@ In Study Sauce you can also make new quizzes and practice exams, ask Claude abou
 
 1. Get the [Claude desktop app](https://claude.ai/download) and open the **Code** tab. (The Chat tab can't open your course site or save notes.)
 2. When it asks for a folder, make a folder called `University` in your home folder and choose it.
-3. Type: *"Install the study-sauce plugin from github.com/samsamthecodingman/ma-study."* Then start a new session.
-   (Or type this yourself: `/plugin install study-sauce --marketplace samsamthecodingman/ma-study`)
+3. Type: *"Install the study-sauce plugin from github.com/samsamthecodingman/study-sauce."* Then start a new session.
+   (Or type this yourself: `/plugin install study-sauce --marketplace samsamthecodingman/study-sauce`)
 4. In **Settings → Connectors**, add **Google Drive** and sign in with the Google account your course files are shared with.
 5. Optional: turn on automatic updates. Type `/plugin`, go to **Marketplaces**, choose this one, and choose **Enable auto-update**.
 
@@ -36,7 +36,7 @@ Installed before 1.1.1? Update once by hand as above. Older versions can't tell 
 
 Had it when it was called `ma-study`? Type `/plugin`, choose **ma-study**, then **Update now**. The next time you ask Claude about studying, it switches you to **study-sauce** by itself. Your notes and Study Sauce stay.
 
-See what changed in [Releases](https://github.com/samsamthecodingman/ma-study/releases).
+See what changed in [Releases](https://github.com/samsamthecodingman/study-sauce/releases).
 
 ## Use
 
