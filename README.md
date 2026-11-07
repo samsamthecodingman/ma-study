@@ -7,9 +7,9 @@ Exam-study skills for Claude Code. Made by Sam Roberts with Claude.
 
 In Study Sauce you can also make new quizzes and practice exams, ask Claude about any question, and report a problem with one button.
 
-[![Launch video preview: answering a quiz question in Study Sauce. Click to watch the full 97-second video](docs/launch-preview.gif)](docs/ma-study-launch.mp4)
+[![Launch video preview: answering a quiz question in Study Sauce. Click to watch the full 97-second video](docs/launch-preview.gif)](docs/study-sauce-launch.mp4)
 
-▶️ [Watch the launch video](docs/ma-study-launch.mp4) (97 s, with sound)
+▶️ [Watch the launch video](docs/study-sauce-launch.mp4) (97 s, with sound)
 
 ![Study Sauce home: days to your next exam, weak-spot revision, and your units](docs/home.png)
 
