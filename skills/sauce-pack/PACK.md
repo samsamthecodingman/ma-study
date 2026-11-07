@@ -1,6 +1,6 @@
 # Quiz pack format
 
-A pack is one JSON file that the Study Hub imports (New, then Import on a unit page, or Settings, Features, Quiz packs, Import). The hub can also make one: Settings, Features, Quiz packs, Export saves the quizzes and practice exams you pick, with their questions, concepts and unit names, but never your answers, progress or dates. Importing a pack with ids that already exist updates those items, so use stable ids and you can fix or extend a pack later.
+A pack is one JSON file that the Study Sauce imports (New, then Import on a unit page, or Settings, Features, Quiz packs, Import). The hub can also make one: Settings, Features, Quiz packs, Export saves the quizzes and practice exams you pick, with their questions, concepts and unit names, but never your answers, progress or dates. Importing a pack with ids that already exist updates those items, so use stable ids and you can fix or extend a pack later.
 
 ## Shape
 

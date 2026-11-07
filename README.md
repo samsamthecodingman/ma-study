@@ -2,14 +2,14 @@
 
 Exam-study skills for Claude Code. Made by Sam Roberts with Claude.
 
-- **ma-study-notes** reads your course page, the slides and worksheets on Google Drive, and forum threads, then writes one notes file per week. It's built for Moodle, Ed and Panopto lecture recordings.
-- **ma-study-hub** quizzes you on those notes in Study Sauce, an interactive page with rendered maths, links back to the lecture video and slide, spaced repetition and weak-spot revision.
+- **sauce-kb** reads your course page, the slides and worksheets on Google Drive, and forum threads, then builds your knowledge base: one notes file per week. It's built for Moodle, Ed and Panopto lecture recordings.
+- **sauce-quiz** quizzes you on those notes in Study Sauce, an interactive page with rendered maths, links back to the lecture video and slide, spaced repetition and weak-spot revision.
 
 In Study Sauce you can also make new quizzes and practice exams, ask Claude about any question, and report a problem with one button.
 
-[![Launch video preview: answering a quiz question in Study Sauce. Click to watch the full 97-second video](docs/launch-preview.gif)](docs/study-sauce-launch.mp4)
+[![Launch video preview: answering a quiz question in Study Sauce. Click to watch the full 97-second video](docs/launch-preview.gif)](https://cdn.jsdelivr.net/gh/samsamthecodingman/ma-study@main/docs/study-sauce-launch.mp4)
 
-▶️ [Watch the launch video](docs/study-sauce-launch.mp4) (97 s, with sound)
+▶️ [Watch the launch video](https://cdn.jsdelivr.net/gh/samsamthecodingman/ma-study@main/docs/study-sauce-launch.mp4) (97 s, with sound)
 
 ![Study Sauce home: days to your next exam, weak-spot revision, and your units](docs/home.png)
 
@@ -21,24 +21,26 @@ In Study Sauce you can also make new quizzes and practice exams, ask Claude abou
 
 1. Get the [Claude desktop app](https://claude.ai/download) and open the **Code** tab. (The Chat tab can't open your course site or save notes.)
 2. When it asks for a folder, make a folder called `University` in your home folder and choose it.
-3. Type: *"Install the ma-study plugin from github.com/samsamthecodingman/ma-study."* Then start a new session.
-   (Or type this yourself: `/plugin install ma-study --marketplace samsamthecodingman/ma-study`)
+3. Type: *"Install the study-sauce plugin from github.com/samsamthecodingman/ma-study."* Then start a new session.
+   (Or type this yourself: `/plugin install study-sauce --marketplace samsamthecodingman/ma-study`)
 4. In **Settings → Connectors**, add **Google Drive** and sign in with the Google account your course files are shared with.
 5. Optional: turn on automatic updates. Type `/plugin`, go to **Marketplaces**, choose this one, and choose **Enable auto-update**.
 
 ## Updating
 
-When a new version is out, Claude tells you at the start of a quiz session and Study Sauce shows a notice. To update, type `/plugin`, choose **ma-study**, then **Update now**, and start a new session. (With auto-update on, this happens by itself.)
+When a new version is out, Claude tells you at the start of a quiz session and Study Sauce shows a notice. To update, type `/plugin`, choose **study-sauce**, then **Update now**, and start a new session. (With auto-update on, this happens by itself.)
 
 Study Sauce updates itself the next time Claude quizzes you, or ask Claude to "update my Study Sauce". Your progress stays.
 
 Installed before 1.1.1? Update once by hand as above. Older versions can't tell you about new ones.
 
+Had it when it was called `ma-study`? Type `/plugin`, choose **ma-study**, then **Update now**. The next time you ask Claude about studying, it switches you to **study-sauce** by itself. Your notes and Study Sauce stay.
+
 See what changed in [Releases](https://github.com/samsamthecodingman/ma-study/releases).
 
 ## Use
 
-Type `/ma-study`, or just say *"help me study for <your unit>"*. Claude opens your course site for you to sign in, asks a couple of letter-answer questions, and builds the notes. Then say *"quiz me on weeks 7–9"*.
+Type `/study-sauce`, or just say *"help me study for <your unit>"*. Claude opens your course site for you to sign in, asks a couple of letter-answer questions, and builds the notes. Then say *"quiz me on weeks 7–9"*.
 
 You'll see approval prompts while it works. Read each one before approving. They should only be about reading your course site, Drive and forum, and saving notes into your `University` folder. If one asks for anything else, say no. Avoid "always allow" for commands.
 
@@ -56,8 +58,8 @@ You don't need Claude to use Study Sauce.
 
 1. Get the standalone Study Sauce file from a friend who has Claude. They ask Claude to *"export my Study Sauce for sharing"*.
 2. Open the file in a browser. Your progress saves in that browser, so keep using the same one.
-3. To make more quizzes, use [Codex CLI](https://github.com/openai/codex) or another coding agent. Copy or symlink `skills/ma-study-notes` and `skills/ma-study-pack` into `~/.codex/skills`. Or just open this repo folder in the agent, and it reads `AGENTS.md`.
-4. Ask it: *"make a quiz pack for <your unit> weeks 11–12"*. It needs your notes first (see ma-study-notes), and it saves a `.json` file in `~/University/<your unit>/packs/`.
+3. To make more quizzes, use [Codex CLI](https://github.com/openai/codex) or another coding agent. Copy or symlink `skills/sauce-kb` and `skills/sauce-pack` into `~/.codex/skills`. Or just open this repo folder in the agent, and it reads `AGENTS.md`.
+4. Ask it: *"make a quiz pack for <your unit> weeks 11–12"*. It needs your notes first (see sauce-kb), and it saves a `.json` file in `~/University/<your unit>/packs/`.
 5. In Study Sauce, go to **Settings → Features → Quiz packs → Import** and pick that file.
 
 ## Report a problem

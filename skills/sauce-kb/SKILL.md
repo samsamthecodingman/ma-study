@@ -1,14 +1,14 @@
 ---
-name: ma-study-notes
-description: "Part of the ma-study set (Monash Automation study skills). Build exam-study notes for a Monash unit: scrape its Moodle page, read slides and worksheets from Google Drive, pull Ed forum clarifications, and save one notes file per week plus an index README. Use when someone asks to 'gather everything for <unit> for exam study', 'scrape the unit page', 'build study notes for <unit>', or wants a unit's week-by-week content captured. For quizzing on existing notes, use ma-study-hub."
+name: sauce-kb
+description: "Part of Study Sauce. Build a knowledge base of exam-study notes for a Monash unit: scrape its Moodle page, read slides and worksheets from Google Drive, pull Ed forum clarifications, and save one notes file per week plus an index README. Use when someone asks to 'gather everything for <unit> for exam study', 'scrape the unit page', 'build study notes for <unit>', or wants a unit's week-by-week content captured. For quizzing on existing notes, use sauce-quiz."
 ---
 
-# ma-study-notes
+# sauce-kb
 
-Builds `<study folder>/<UNIT>/StudyKB/`: one notes file per week, raw slide text in `sources/`, and an index `README.md`. The study folder is `~/University/` if it exists, otherwise the folder this session was opened in (see **ma-study**). Assume the student is new to Claude Code: plain words, one thing to do at a time, no tool names.
+Builds `<study folder>/<UNIT>/StudyKB/`: one notes file per week, raw slide text in `sources/`, and an index `README.md`. The study folder is `~/University/` if it exists, otherwise the folder this session was opened in (see **study-sauce**). Assume the student is new to Claude Code: plain words, one thing to do at a time, no tool names.
 
 ## 0. Check the tab
-If the built-in browser tools (`mcp__Claude_Browser__*`) aren't available, this is the Chat tab or a setup without the browser. Give the **ma-study** step-0 message (switch to the Code tab) and stop.
+If the built-in browser tools (`mcp__Claude_Browser__*`) aren't available, this is the Chat tab or a setup without the browser. Give the **study-sauce** step-0 message (switch to the Code tab) and stop.
 
 ## 1. Open Moodle and ask what they need (first message, before any work)
 
@@ -36,7 +36,7 @@ Then wait for "done". Only ask for more if it actually comes up:
 ## 2. Map the unit (you, inline)
 
 - Find the unit's Moodle course id. Read the course index with `javascript_tool` on the unit page: `li.section` / `[data-for="section"]` items give `section=N` URLs and titles. Note the week sections plus unit info, schedule, assessments/exam and resources.
-- **Work out which weeks to build.** Start from their answer to question 1. If `StudyKB/` already exists, list the `week-NN-*.md` files there and skip those weeks unless they chose 1a (redo everything) or named those weeks in 1b. Weeks on Moodle with no content yet (future weeks) are skipped too. If nothing is left to build, say so and offer **ma-study-hub**.
+- **Work out which weeks to build.** Start from their answer to question 1. If `StudyKB/` already exists, list the `week-NN-*.md` files there and skip those weeks unless they chose 1a (redo everything) or named those weeks in 1b. Weeks on Moodle with no content yet (future weeks) are skipped too. If nothing is left to build, say so and offer **sauce-quiz**.
 - Check whether the Drive connector works: `get_file_metadata` on one Drive file ID from a week page. If it works, agents read everything through it. Downloading through the browser's Drive viewer fails (CORS and a viewer made of images), so don't try.
 - **Ed source:** if an Eunomia server is connected and has Ed synced, search it. Otherwise use the browser (read-only; see **Reading Ed** below). Open `https://edstem.org/au/dashboard` (Monash uses the `au` region). If it shows a login page, ask them to sign in there with their Monash account and say done; if they'd rather not, skip Ed and list it as a gap. Click the unit's course card (e.g. "ECE4179 S2 2026") and note the course URL `https://edstem.org/au/courses/<cid>/discussion`.
 - If Eunomia is connected, `entities_search "<UNIT>"` and reuse an existing organisation entity for the unit as the hub.
@@ -76,7 +76,7 @@ The rules below apply whether you build the weeks yourself or through agents. Ea
    - **Source tags.** End every bullet with where it came from: `[lecture]` (this week's lecture slides or video), `[studio]`, `[worksheet]`, `[workshop]`, `[Ed]`, `[reading]` or `[extra]` (not in any course material). Split a bullet that mixes sources. If the idea is taught in another week's lectures, add `· lectured WN`, e.g. `[studio · lectured W12]`.
    - Put one tag on each non-lecture section heading (`## Studio 11 solution methods [studio]`); a bullet's own tag overrides it. Tag the likely exam questions the same way.
    - Add one key line under the overview: `Source tags: [lecture] lecture slides/video · [studio] studio · [worksheet] worksheet · [workshop] workshop · [Ed] Ed staff · [reading] reading · [extra] not in course material · "lectured WN" = taught in week N's lectures.`
-   - The Study Hub's "After lecture" quizzes read only `[lecture]` lines, so tag carefully.
+   - The Study Sauce's "After lecture" quizzes read only `[lecture]` lines, so tag carefully.
 4. **Worksheet / studio / workshop:** question types and solution methods. If no solution was readable, mark the agent's own working as (extra).
 5. **Ed clarifications:** bullets with thread ids, especially "examinable or not" rulings.
 6. **Likely exam questions:** 5–10, each with a short answer.
@@ -84,7 +84,7 @@ The rules below apply whether you build the weeks yourself or through agents. Ea
 For a test week (e.g. an MST), cover the scope and format, the practice paper with worked solutions, and the cheat-sheet or formula-sheet rules instead of new concepts.
 
 ### Raw text
-Always save the full extracted slide and worksheet text to `sources/week-NN-<name>.txt`, even when it's long. That's what makes ma-study-hub faithful to the slides.
+Always save the full extracted slide and worksheet text to `sources/week-NN-<name>.txt`, even when it's long. That's what makes sauce-quiz faithful to the slides.
 
 ### Eunomia (only if connected)
 - `document_upload` the week .md. The upload can be condensed (about 4–6 KB) if the full file is large; say so in the README.
@@ -101,4 +101,4 @@ Always save the full extracted slide and worksheet text to `sources/week-NN-<nam
    - The Moodle URL pattern.
    - **Known gaps:** unreadable solutions, missing practice papers, unprocessed videos and notebooks, items to double-check.
 2. If Eunomia is connected: upload the README as `<UNIT>-StudyKB-README.md`, and write hub memories on the unit entity (type world): notes location, weekly topics, doc ids, "read course files via the Drive connector", examinability rulings.
-3. **Verify:** `ls` shows every week file; with Eunomia, `document_list` shows each doc `ready`. Then report in a few lines: what's built, the exam facts, the gaps to act on, and that **ma-study-hub** can now quiz them.
+3. **Verify:** `ls` shows every week file; with Eunomia, `document_list` shows each doc `ready`. Then report in a few lines: what's built, the exam facts, the gaps to act on, and that **sauce-quiz** can now quiz them.

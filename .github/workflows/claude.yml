@@ -2,8 +2,8 @@ name: claude
 
 # Two jobs, one loop (same as Ledger's):
 #
-#   plan       An issue gets the `feedback` label -- which is what the Study Hub's
-#              "Report a problem" button files (skills/ma-study-hub/file-report.py) --
+#   plan       An issue gets the `feedback` label -- which is what the Study Sauce's
+#              "Report a problem" button files (skills/sauce-quiz/file-report.py) --
 #              and Claude reads the code and replies with a fix plan. Read-only.
 #
 #   implement  The owner or a collaborator comments `@claude ...` (e.g. "@claude go
@@ -45,7 +45,7 @@ jobs:
             --allowedTools "Read,Grep,Glob,Bash(git log:*),Bash(git show:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh issue comment ${{ github.event.issue.number }}:*)"
           prompt: |
             You are triaging issue #${{ github.event.issue.number }} in ${{ github.repository }},
-            filed from the Study Hub (the quiz and revision page built by the ma-study-hub skill)
+            filed from the Study Sauce (the quiz and revision page built by the sauce-quiz skill)
             through its "Report a problem" button. Read it with
             `gh issue view ${{ github.event.issue.number }}`.
 
@@ -56,7 +56,7 @@ jobs:
             Your job is to plan a fix, not to write one. You have read-only access.
 
             1. Read README.md and skills/*/SKILL.md for how the skills work.
-            2. The hub page is skills/ma-study-hub/template.html: one HTML file (CSS, then a
+            2. The hub page is skills/sauce-quiz/template.html: one HTML file (CSS, then a
                Store block over the artifact db, then views and routing, then the Claude
                features: question generation, Ask Claude, report a problem). Quiz content
                (questions, concepts, notes, sources) lives in the artifact db, not in this repo,

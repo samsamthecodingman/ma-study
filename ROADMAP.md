@@ -1,6 +1,6 @@
 # Feature wait list
 
-Ideas for ma-study and the Study Hub. What's built so far is under Status. Everything here is an **optional add-on** that users switch on in Settings, unless it's marked **core**.
+Ideas for Study Sauce. What's built so far is under Status. Everything here is an **optional add-on** that users switch on in Settings, unless it's marked **core**.
 
 Size: **S** is about a session, **M** is a few sessions, **L** needs its own plan.
 
@@ -19,7 +19,7 @@ Size: **S** is about a session, **M** is a few sessions, **L** needs its own pla
 |---|---|---|---|
 | **Progress breakdowns** | A tick list of progress bars and breakdowns: content to learn, assignments, quizzes, classes. Filter by this week, since the mid-sem break, or all semester. | M | Needs a content checklist per unit (lectures, studios, readings) built from the notes. Lecture-video time left could come from Moodle durations. Keep it calm: no streaks and no "you're behind" language. |
 | **Study planner** *(added)* | Turns exam dates, your free time and your weak spots into a day-by-day plan, and optionally adds it to Google Calendar. | M | Re-plans when you miss a day. Ties into the progress breakdowns. |
-| **Unit overview generation** | One page per unit: assessments and weights, key dates, exam format, permitted materials, and what's examinable. | S | Most of this already comes out of `ma-study-notes` (the `00-unit-and-exam` notes). Mostly a view. |
+| **Unit overview generation** | One page per unit: assessments and weights, key dates, exam format, permitted materials, and what's examinable. | S | Most of this already comes out of `sauce-kb` (the `00-unit-and-exam` notes). Mostly a view. |
 
 ## Content generation
 
@@ -46,7 +46,7 @@ Size: **S** is about a session, **M** is a few sessions, **L** needs its own pla
 |---|---|---|---|
 | **Tabbed Settings** | Splits Settings into tabs (Study, Exams, Appearance, Features) instead of one long page. | S | Suggest **core**: needed once add-ons have their own toggles. |
 | **Colour palette generator** | Make or customise your own palette. Generated palettes still follow the hub's design rules (contrast, the unit hue system, light and dark), so they never look like generic AI design. | M | Reuse the preset maths in `head.html` and the design skills used to build the hub. Validate contrast before saving. |
-| **Platform-agnostic** | Works for students at other universities: pluggable sources (Canvas, Blackboard, plain PDFs and slides) instead of only Moodle, Ed and Monash Drive. | L | Suggest **core**: it's an architecture change. Split `ma-study-notes` into a source-adapter layer plus a common notes format. Monash stays the default adapter. |
+| **Platform-agnostic** | Works for students at other universities: pluggable sources (Canvas, Blackboard, plain PDFs and slides) instead of only Moodle, Ed and Monash Drive. | L | Suggest **core**: it's an architecture change. Split `sauce-kb` into a source-adapter layer plus a common notes format. Monash stays the default adapter. |
 | **Build your own feature** | A template and guided steps so users can add their own features without being experts. Planning and building follow Sam's design philosophy (simple presentation, continuous feedback) and the hub's design system. Features plug in through a stable add-on interface, so users keep receiving main-branch updates. | L | Needs a stable add-on API first: a registry of hooks (home cards, quiz feedback, settings tab, db collections). Best after Tabbed Settings. |
 | **Shared unit trees via Notion** | Share a unit's content tree (concepts, notes, question banks) with other Monash students through Notion. **MA exclusive.** | M–L | Decide what's shareable (your own notes and generated questions, not staff material). Needs an opt-in and a review step before anything is shared. |
 

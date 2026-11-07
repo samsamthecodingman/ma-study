@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Makes a shareable copy of a Study Hub: one HTML file that runs in any browser with no Claude.
+// Makes a shareable copy of a Study Sauce: one HTML file that runs in any browser with no Claude.
 // It carries the quizzes, exams, concepts and content list, but none of the student's answers,
 // progress, notes or settings. Progress in the copy saves in the browser that opens it.
 //
@@ -7,7 +7,7 @@
 //
 // <docs-dir> holds one JSON file per hub doc, as <collection>/<id>.json (what ArtifactData
 // `list` with out_dir writes). --pack also writes the same content as a quiz pack (see
-// ../ma-study-pack/PACK.md) that a friend can import into a copy they already have.
+// ../sauce-pack/PACK.md) that a friend can import into a copy they already have.
 const fs = require('fs'), path = require('path');
 
 const args = process.argv.slice(2), opt = {};
@@ -53,7 +53,7 @@ const ver = (tpl.match(/const HUB_VERSION = '([^']+)'/) || [])[1] || '';
 const js = v => JSON.stringify(v).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Study Hub</title>
+<title>Study Sauce</title>
 <script>window.HUB_STANDALONE = true; window.HUB_SEED = ${js(seed)};</script>
 </head><body>
 ${tpl}
@@ -64,7 +64,7 @@ const n = c => Object.keys(seed[c]).length;
 console.log(`wrote ${out} (hub ${ver}, ${(html.length / 1e6).toFixed(2)} MB): ${n('quizzes')} quizzes, ${n('exams')} exams, ${n('questions')} questions, ${n('concepts')} concepts, ${Object.keys(seed.meta).map(k => seed.meta[k].unit).join(', ') || 'no units'}`);
 
 if (opt.pack) {
-  const pack = { format: 'ma-study-pack', version: 1, title: `Study Hub export ${new Date().toISOString().slice(0, 10)}` };
+  const pack = { format: 'ma-study-pack', version: 1, title: `Study Sauce export ${new Date().toISOString().slice(0, 10)}` };
   for (const c of ['concepts', 'questions', 'quizzes', 'exams', 'meta']) pack[c] = seed[c];
   fs.writeFileSync(opt.pack, JSON.stringify(pack, null, 1));
   console.log(`wrote ${opt.pack}`);

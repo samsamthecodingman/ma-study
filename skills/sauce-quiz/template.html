@@ -2295,7 +2295,7 @@ function openNew(key, kind) {
   const d = mkDlg(); drawNew(); d.showModal();
 }
 const kindSeg = o => SOLO ? '' : `<div class="mkrow"><span class="seg" role="group" aria-label="kind">${[['quiz', 'Quiz'], ['exam', 'Practice exam'], ['import', 'Import']].map(([v, l]) => `<button type="button" data-kind="${v}" aria-pressed="${v === o.kind}">${l}</button>`).join('')}</span></div>`;
-// Import: a quiz pack file (.json) from the ma-study skills or another hub's Export.
+// Import: a quiz pack file (.json) from the sauce-pack skill or another hub's Export.
 function drawImport() {
   const d = mkDlg(), o = mk;
   d.innerHTML = `<form method="dialog" class="mkf"><h2 id="mkd-t">${SOLO ? 'Import a quiz pack' : `New for ${esc(o.unit)}`}</h2>${kindSeg(o)}
@@ -2645,7 +2645,7 @@ function repDraw(d, sent) {
   d.innerHTML = `<h2 id="rdlg-t">Report a problem</h2>${sent ? `<p class="muted" style="margin:0 0 8px">${sent}</p>` : ''}
     <span class="seg rep-kind" role="group" aria-label="Kind of report">${[['bug', 'Something’s wrong'], ['idea', 'Idea']].map(([v, l]) => `<button data-k="${v}" aria-pressed="${repKind === v}">${l}</button>`).join('')}</span>
     <div class="flagbox"><label for="rtx">${repKind === 'bug' ? 'What went wrong?' : 'What would make the hub better?'}</label><textarea id="rtx" maxlength="4000" placeholder="${repKind === 'bug' ? 'What you did, what happened, what you expected' : 'Describe the idea'}"></textarea></div>
-    <p class="muted rep-note">Claude will check with you in chat before posting this as an issue on the public ma-study GitHub repo. Leave out personal details.</p>
+    <p class="muted rep-note">Claude will check with you in chat before posting this as an issue on the public Study Sauce GitHub repo. Leave out personal details.</p>
     <div class="qnav"><button class="btn out" id="rno">Close</button><button class="btn" id="rgo" aria-keyshortcuts="Control+Enter Meta+Enter">Send${sendHint()}</button></div>${list}`;
   sendOnModEnter($('#rtx'), () => $('#rgo').click());
   d.querySelectorAll('.rep-kind button').forEach(b => b.onclick = () => { const t = $('#rtx').value; repKind = b.dataset.k; repDraw(d, ''); $('#rtx').value = t; $('#rtx').focus(); });

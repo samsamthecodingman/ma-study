@@ -1,7 +1,14 @@
 {
-  "name": "ma-study",
-  "description": "Monash Automation exam-study skills: build week-by-week notes for a Monash unit from Moodle, Google Drive slides and Ed, then quiz yourself on them in an interactive Study Hub with rendered maths, spaced repetition and weak-spot revision.",
-  "version": "1.7.0",
-  "author": { "name": "Sam Roberts" },
-  "keywords": ["study", "monash", "moodle", "quiz", "exam"]
+  "name": "study-sauce",
+  "description": "Exam-study skills: build a week-by-week knowledge base for a unit from Moodle, Google Drive slides and Ed, then quiz yourself on it in Study Sauce, an interactive page with rendered maths, spaced repetition and weak-spot revision.",
+  "version": "1.8.0",
+  "author": {
+    "name": "Sam Roberts"
+  },
+  "keywords": [
+    "study",
+    "moodle",
+    "quiz",
+    "exam"
+  ]
 }

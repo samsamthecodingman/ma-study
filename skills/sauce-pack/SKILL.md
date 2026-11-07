@@ -1,16 +1,16 @@
 ---
-name: ma-study-pack
-description: "Part of the ma-study set. Write a quiz pack (one .json file) from a student's ma-study-notes notes, to import into a Study Hub with New, then Import on a unit page (or Settings, Features, Quiz packs, Import). Works with any coding agent, including Codex CLI, and needs no Claude tools. Use when someone says 'make a quiz pack', 'quiz me in my study hub', 'write questions for week N', or wants quizzes for a Monash unit and no Claude artifact tools are available."
+name: sauce-pack
+description: "Part of Study Sauce. Write a quiz pack (one .json file) from a student's sauce-kb notes, to import into a Study Sauce with New, then Import on a unit page (or Settings, Features, Quiz packs, Import). Works with any coding agent, including Codex CLI, and needs no Claude tools. Use when someone says 'make a quiz pack', 'quiz me in my Study Sauce', 'quiz me in my study hub', 'write questions for week N', or wants quizzes for a Monash unit and no Claude artifact tools are available."
 ---
 
-# ma-study-pack
+# sauce-pack
 
-Turns the notes from **ma-study-notes** into a quiz pack: one `.json` file the student imports into their Study Hub. No Claude tools are needed. The full format is in `PACK.md` next to this file. Read it before writing the pack.
+Turns the notes from **sauce-kb** into a quiz pack: one `.json` file the student imports into their Study Sauce. No Claude tools are needed. The full format is in `PACK.md` next to this file. Read it before writing the pack.
 
 ## 1. Find the notes
 - The study folder is `~/University/` if it exists, otherwise the folder you were opened in.
 - Read `<study folder>/<UNIT>/StudyKB/README.md`, then the week files the student asked for, then the raw slide text in `sources/`. The slide text is the ground truth.
-- No notes yet? Say so and use the **ma-study-notes** skill first. If the student has the slide text as files or pasted text, you can work from that.
+- No notes yet? Say so and use the **sauce-kb** skill first. If the student has the slide text as files or pasted text, you can work from that.
 - Skip anything the notes mark as not examinable.
 
 ## 2. Write the questions
@@ -23,7 +23,7 @@ Turns the notes from **ma-study-notes** into a quiz pack: one `.json` file the s
 - Use a unit-prefixed id for everything, like `ece4179-w11-q03`.
 
 ## 3. Tag concepts
-- 4 to 7 concepts per week, named as the slides name them. Give each question 1 to 3 concept ids. The progress view in the Study Hub runs on these.
+- 4 to 7 concepts per week, named as the slides name them. Give each question 1 to 3 concept ids. The progress view in the Study Sauce runs on these.
 - Reuse concept ids. If a pack for this unit already exists in `<study folder>/<UNIT>/packs/`, read it and reuse its concept ids so progress carries across packs. Add a new concept only for a topic not covered.
 
 ## 4. Links (optional)
@@ -37,7 +37,7 @@ Turns the notes from **ma-study-notes** into a quiz pack: one `.json` file the s
 
 ## 6. Tell the student
 Say where the file is, then:
-1. Open your Study Hub file in a browser.
+1. Open your Study Sauce file in a browser.
 2. On a unit page, tap New, then Import (or go to Settings, Features, Quiz packs, Import).
 3. Pick the pack file.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Checks a Study Hub quiz pack. Usage: node check-pack.cjs pack.json
+// Checks a Study Sauce quiz pack. Usage: node check-pack.cjs pack.json
 // Exit code 1 if there are errors. No dependencies.
 const fs = require('fs');
 
